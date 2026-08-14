@@ -49,7 +49,18 @@ grant_type=client_credentials&client_id=...&client_secret=...
 ### 확인된 필드
 
 `GET /api/v1/accounts` → `result: []`
-`accountSeq`, `accountNumber`, `accountName`, `accountType`, `status`, `currency`
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `accountNo` | String | 계좌번호 |
+| `accountSeq` | **Long** | 계좌 식별 키. 다른 API 호출 시 이 값을 헤더로 쓴다 |
+| `accountType` | String | `BROKERAGE`(위탁, 국내·해외 주식 통합) / `OVERSEAS_DERIVATIVES`(해외파생) / `PENSION_SAVINGS`(연금저축) / `RESHORING_INVESTMENT`(리쇼어링투자, RIA) |
+
+`accountName`, `accountNumber`, `status`, `currency` 는 **없다.** 초기 스펙 요약에
+그렇게 적혀 있었지만 `Models/Account.md` 기준 실제 필드는 위 세 개뿐이다.
+
+문서가 accountType 의 "알 수 없는 enum 값을 처리하라"고 명시한다. `accounts.py`
+는 매핑에 없는 값이면 원래 문자열을 그대로 보여준다.
 
 `GET /api/v1/holdings` → `result: {holdings: [], summary: {}}`
 holdings 항목: `symbol`, `quantity`, `purchasePrice`, `evaluationPrice`,

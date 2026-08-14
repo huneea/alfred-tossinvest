@@ -17,17 +17,32 @@ BUYING_POWER_KEY = "cashBuyingPower"
 # 매수가능금액은 통화별로 따로 조회한다. 원화 계좌 기준으로 KRW 를 본다.
 BUYING_POWER_CURRENCY = "KRW"
 
+# Account.accountType 의 enum. 문서가 "알 수 없는 값을 처리하라"고 명시하고 있어
+# 매핑에 없으면 원래 값을 그대로 보여준다.
+ACCOUNT_TYPES = {
+    "BROKERAGE": "위탁",
+    "OVERSEAS_DERIVATIVES": "해외파생",
+    "PENSION_SAVINGS": "연금저축",
+    "RESHORING_INVESTMENT": "리쇼어링투자",
+}
+
 
 def _label(account, seq):
     """계좌를 가리키는 사람이 읽을 이름.
 
-    accountName·accountNumber 가 비어 오는 경우가 있어 순서대로 떨어뜨린다.
+    계좌번호 필드는 accountNo 다. accountName 이나 accountNumber 는 없다.
     """
-    for key in ("accountName", "accountNumber"):
-        value = account.get(key)
-        if value:
-            return str(value)
+    number = account.get("accountNo")
+    if number:
+        return str(number)
     return "계좌 {0}".format(seq)
+
+
+def _type_label(account):
+    raw = account.get("accountType")
+    if not raw:
+        return "-"
+    return ACCOUNT_TYPES.get(raw, str(raw))
 
 
 def _buying_power_text(token, seq):
@@ -68,7 +83,7 @@ def main():
                 title=_label(account, seq),
                 subtitle="seq {0} · {1} · {2}".format(
                     seq,
-                    account.get("accountType") or "-",
+                    _type_label(account),
                     _buying_power_text(token, seq),
                 ),
                 arg=seq,
