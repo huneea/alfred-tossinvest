@@ -32,6 +32,7 @@ Alfred 는 스크립트를 최소 PATH(`/bin:/usr/bin:/usr/local/bin`)로 실행
 ```
 workflow/                 # 이 디렉터리가 곧 Alfred 워크플로우 번들
 ├── price.py              # Script Filter tsp — 관심종목 목록 / 종목 검색
+├── watchlist.py          # Script Filter tsw — 관심종목 전용 조회·제거
 ├── quote.py              # Script Filter tsq — 한 종목 상세 시세
 ├── holdings.py           # Script Filter tsh — 보유 종목/평가손익
 ├── accounts.py           # Script Filter tsa — 계좌 목록 + 매수가능금액
@@ -44,6 +45,8 @@ workflow/                 # 이 디렉터리가 곧 Alfred 워크플로우 번�
     ├── auth.py           # OAuth2 토큰 발급 + 파일 캐시
     ├── api.py            # 도메인 조회 함수, 종목 마스터 캐시
     ├── store.py          # 관심종목·최근 조회 영속 저장
+    ├── view.py           # 종목 목록 렌더링 (tsp·tsw 공용)
+    ├── text.py           # 비교용 문자열 정규화 (NFC)
     ├── fmt.py            # 금액/수익률 표시 포맷 (Decimal 기반)
     └── alfred.py         # Script Filter JSON 출력, run() 래퍼
 build/
@@ -95,6 +98,10 @@ Alfred 디버거에서 스택을 볼 수 있게 둔다.
   `api.daily_changes()` 로 동시 실행 수를 제한해 병렬 호출한다.
 - **캔들 순서를 가정하지 않는다** — API 가 어떤 순서로 주는지 문서에 없다.
   `api.candles()` 가 timestamp 로 정렬한다. 가정하면 등락 부호가 뒤집힌다.
+- **문자열 비교 전에 `text.fold()` 를 통과시킨다** — 한글은 NFC('하')와
+  NFD('ㅎ'+'ㅏ')로 다르게 표현될 수 있고, 눈으로는 같아도 문자열로는 다르다.
+  API 가 주는 종목명은 NFC 인데 macOS 는 입력 경로에 따라 NFD 를 흘려보내서,
+  정규화하지 않으면 같은 검색어가 되기도 하고 안 되기도 한다. 실제로 겪은 버그다.
 - **금액은 문자열로 온다** — 응답의 금액·수량·수익률은 전부 문자열이다.
   `float` 로 바꾸지 말고 `fmt.to_decimal()` 을 쓴다.
 

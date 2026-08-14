@@ -31,6 +31,7 @@ UID_RECORD = "A1B2C3D4-0007-4000-8000-000000000007"
 UID_TOGGLE = "A1B2C3D4-0008-4000-8000-000000000008"
 UID_NOTIFY = "A1B2C3D4-0009-4000-8000-000000000009"
 UID_HOTKEY = "A1B2C3D4-0010-4000-8000-000000000010"
+UID_WATCHLIST = "A1B2C3D4-0011-4000-8000-000000000011"
 
 # NSEvent 수식키 플래그. Alfred 는 연결마다 이 값으로 어떤 수식키를 눌렀을 때
 # 그 경로로 갈지 판단한다.
@@ -43,6 +44,8 @@ README = """토스증권 Open API 로 시세와 계좌를 조회합니다. 조�
   tsp                  관심종목의 현재가와 등락률을 한 번에 봅니다
                        (관심종목이 없으면 최근 조회한 종목을 보여줍니다)
   tsp <종목명|티커>    종목 검색                          (price)
+  tsw                  관심종목만 봅니다                  (watchlist)
+  tsw <검색어>         관심종목 안에서 좁히기
   tsq <종목명|티커>    등락·시가/고가/저가·거래량·호가    (quote)
   tsh [티커]           보유 종목과 평가손익               (holdings)
   tsa                  계좌 목록과 매수가능금액           (accounts)
@@ -50,6 +53,11 @@ README = """토스증권 Open API 로 시세와 계좌를 조회합니다. 조�
 
   ↩   토스증권에서 열기 (최근 조회에 기록됩니다)
   ⌘↩  관심종목 추가/제거
+
+■ 관심종목 관리
+  등록  tsp 로 종목을 검색한 뒤 ⌘↩
+  제거  tsw 에서 해당 종목에 ⌘↩ (tsp 검색 결과에서도 됩니다)
+  확인  tsw — 등록한 종목만 보여줍니다. ★ 표시는 이미 등록된 종목입니다.
 
 ■ 핫키
   이 워크플로우의 Hotkey 오브젝트는 비어 있습니다. 더블클릭해 원하는 키를
@@ -156,6 +164,13 @@ def build():
             },
         },
         script_filter(
+            UID_WATCHLIST,
+            "tsw",
+            '/usr/bin/python3 watchlist.py "$1"',
+            "관심종목",
+            "등록한 관심종목만 봅니다. ⌘↩ 로 제거합니다",
+        ),
+        script_filter(
             UID_QUOTE,
             "tsq",
             '/usr/bin/python3 quote.py "$1"',
@@ -248,6 +263,10 @@ def build():
                 link(UID_RECORD),
                 link(UID_TOGGLE, MOD_CMD, "관심종목 토글"),
             ],
+            UID_WATCHLIST: [
+                link(UID_RECORD),
+                link(UID_TOGGLE, MOD_CMD, "관심종목에서 제거"),
+            ],
             UID_HOLDINGS: [link(UID_RECORD)],
             UID_ACCOUNTS: [link(UID_CLIPBOARD)],
             UID_RECORD: [link(UID_OPEN_URL)],
@@ -258,9 +277,10 @@ def build():
         "uidata": {
             UID_HOTKEY: {"xpos": 40, "ypos": 40},
             UID_PRICE: {"xpos": 220, "ypos": 40},
-            UID_QUOTE: {"xpos": 220, "ypos": 180},
-            UID_HOLDINGS: {"xpos": 220, "ypos": 320},
-            UID_ACCOUNTS: {"xpos": 220, "ypos": 460},
+            UID_WATCHLIST: {"xpos": 220, "ypos": 180},
+            UID_QUOTE: {"xpos": 220, "ypos": 320},
+            UID_HOLDINGS: {"xpos": 220, "ypos": 460},
+            UID_ACCOUNTS: {"xpos": 220, "ypos": 600},
             UID_RECORD: {"xpos": 520, "ypos": 120},
             UID_TOGGLE: {"xpos": 520, "ypos": 260},
             UID_OPEN_URL: {"xpos": 760, "ypos": 120},
