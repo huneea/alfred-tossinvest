@@ -68,3 +68,50 @@ def signed_money(value, currency="KRW"):
         return "-"
     sign = "+" if amount > 0 else ("-" if amount < 0 else "")
     return "{0}{1}".format(sign, money(abs(amount), currency))
+
+
+def signed_ratio(value):
+    """소수비율로 오는 손익률을 퍼센트로 표시한다.
+
+    holdings 계열의 rate 는 0.1077 처럼 소수비율이다. 캔들에서 직접 계산하는
+    등락률(signed_rate)은 이미 퍼센트라 단위가 다르니 섞어 쓰지 않는다.
+    """
+    ratio = to_decimal(value)
+    if ratio is None:
+        return "-"
+    return signed_rate(ratio * 100)
+
+
+def price(value):
+    """Price 모델({"krw": ..., "usd": ...})을 문자열로.
+
+    국내 종목만 있으면 usd 는 null 로 온다. 있는 통화만 이어 붙인다.
+    """
+    if not isinstance(value, dict):
+        return money(value)
+
+    parts = []
+    for key, currency in (("krw", "KRW"), ("usd", "USD")):
+        amount = to_decimal(value.get(key))
+        if amount is not None and amount != 0:
+            parts.append(money(amount, currency))
+    if parts:
+        return " + ".join(parts)
+
+    # 전부 0 이거나 없을 때. krw 는 종목이 없어도 0 으로 오므로 0 을 그대로 보인다.
+    return money(value.get("krw"), "KRW") if "krw" in value else "-"
+
+
+def signed_price(value):
+    """Price 모델을 부호와 함께. 손익 표시에 쓴다."""
+    if not isinstance(value, dict):
+        return signed_money(value)
+
+    parts = []
+    for key, currency in (("krw", "KRW"), ("usd", "USD")):
+        amount = to_decimal(value.get(key))
+        if amount is not None and amount != 0:
+            parts.append(signed_money(amount, currency))
+    if parts:
+        return " + ".join(parts)
+    return signed_money(value.get("krw"), "KRW") if "krw" in value else "-"

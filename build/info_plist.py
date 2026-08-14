@@ -267,7 +267,10 @@ def build():
                 link(UID_RECORD),
                 link(UID_TOGGLE, MOD_CMD, "관심종목에서 제거"),
             ],
-            UID_HOLDINGS: [link(UID_RECORD)],
+            UID_HOLDINGS: [
+                link(UID_RECORD),
+                link(UID_TOGGLE, MOD_CMD, "관심종목 토글"),
+            ],
             UID_ACCOUNTS: [link(UID_CLIPBOARD)],
             UID_RECORD: [link(UID_OPEN_URL)],
             UID_TOGGLE: [link(UID_NOTIFY)],

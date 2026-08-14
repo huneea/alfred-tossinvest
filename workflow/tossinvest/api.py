@@ -50,14 +50,17 @@ def resolve_account_seq(token):
 
 
 def holdings(token, account_seq):
-    """보유 종목과 합계. {"holdings": [...], "summary": {...}} 형태."""
+    """보유 종목 개요(HoldingsOverview)를 그대로 반환.
+
+    보유 종목 목록의 키는 items 다. holdings 가 아니다. 합계 금액은 Price
+    모델({"krw": ..., "usd": ...})로 통화별로 나뉘어 오고, 손익률(rate)은
+    퍼센트가 아니라 소수비율(0.1077 = 10.77%)이다.
+    """
     result = client.get("/api/v1/holdings", token, account_seq=account_seq)
     if not isinstance(result, dict):
-        return {"holdings": [], "summary": {}}
-    return {
-        "holdings": result.get("holdings") or [],
-        "summary": result.get("summary") or {},
-    }
+        return {}
+    result.setdefault("items", [])
+    return result
 
 
 def buying_power(token, account_seq, currency="KRW"):

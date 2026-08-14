@@ -62,11 +62,34 @@ grant_type=client_credentials&client_id=...&client_secret=...
 문서가 accountType 의 "알 수 없는 enum 값을 처리하라"고 명시한다. `accounts.py`
 는 매핑에 없는 값이면 원래 문자열을 그대로 보여준다.
 
-`GET /api/v1/holdings` → `result: {holdings: [], summary: {}}`
-holdings 항목: `symbol`, `quantity`, `purchasePrice`, `evaluationPrice`,
-`evaluationAmount`, `profitLoss`, `profitLossRate`, `currency`
-summary: `totalEvaluationAmount`, `totalPurchaseAmount`, `totalProfitLoss`,
-`totalProfitLossRate`
+`GET /api/v1/holdings` → `result: HoldingsOverview`
+쿼리 `symbol` 은 선택 (특정 종목만 조회).
+
+```
+result (HoldingsOverview)
+├── items: [HoldingsItem]        ← 보유 종목 목록. holdings 가 아니다
+├── totalPurchaseAmount: Price
+├── marketValue:    { amount: Price, amountAfterCost: Price }
+├── profitLoss:     { amount: Price, amountAfterCost: Price, rate, rateAfterCost }
+└── dailyProfitLoss:{ amount: Price, rate }
+
+HoldingsItem
+├── symbol, name, marketCountry, currency
+├── quantity, lastPrice, averagePurchasePrice
+├── marketValue:    { purchaseAmount, amount, amountAfterCost }
+├── profitLoss:     { amount, amountAfterCost, rate, rateAfterCost }
+├── dailyProfitLoss:{ amount, rate }
+└── cost
+
+Price = { krw, usd }   국내만 있으면 usd 는 null, krw 는 종목이 없어도 0
+```
+
+**손익률(`rate`)은 퍼센트가 아니라 소수비율이다.** `0.1077` = 10.77%.
+`fmt.signed_ratio()` 로 표시한다. 캔들에서 직접 계산하는 등락률은 이미 퍼센트라
+`fmt.signed_rate()` 를 쓴다. 둘을 섞으면 100배 틀린다.
+
+개요의 금액은 통화별로 나뉜 `Price` 지만, 종목 항목의 금액은 그냥 숫자이고
+해당 종목의 `currency` 기준이다.
 
 `GET /api/v1/prices` → `result: []`
 `symbol`, `timestamp`, `lastPrice`, `currency`
