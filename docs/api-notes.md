@@ -156,8 +156,18 @@ SK하이닉스 (2026-08-14)
   랭킹 basePrice                1,593,000   ← 토스가 직접 주는 값
 ```
 
-`adjusted` 를 꺼도 같으므로 수정주가 문제가 아니다. **원인은 밝히지 못했다.**
-다만 기준가 쪽이 맞다는 것은 상하한가 검산과 랭킹 `basePrice` 두 경로로 확인됐다.
+`adjusted` 를 꺼도 같으므로 수정주가 문제가 아니다. 기준가 쪽이 맞다는 것은
+상하한가 검산과 랭킹 `basePrice` 두 경로로 확인됐다.
+
+**유력한 설명은 거래소 차이다.** 캔들은 KRX 정규장 종가이고 기준가는 넥스트레이드
+(NXT) 애프터마켓까지 반영한 최종가로 보인다. 근거:
+
+- 시장 캘린더 문서가 "통합 모드 (KRX+NXT) 기준" 이라고 명시한다
+- `KrMarketDetail` 이 `nxtSupported`, `krxTradingSuspended`, `nxtTradingSuspended`
+  로 두 거래소를 구분해서 다룬다
+
+확정하지는 못했다. `candles`·`prices` 어디에도 거래소를 고르는 파라미터가 없어
+"통합 종가로 달라" 고 요청할 방법이 없기 때문이다.
 
 `RankingPrice` 모델이 등락률을 `(lastPrice - basePrice) / basePrice` 로 정의하며,
 `changeRate` 는 소수 4자리 소수비율(`0.0382`)이라 앱 표시는 3.82% 가 된다.
