@@ -26,13 +26,34 @@ UID_HOLDINGS = "A1B2C3D4-0002-4000-8000-000000000002"
 UID_ACCOUNTS = "A1B2C3D4-0003-4000-8000-000000000003"
 UID_OPEN_URL = "A1B2C3D4-0004-4000-8000-000000000004"
 UID_CLIPBOARD = "A1B2C3D4-0005-4000-8000-000000000005"
+UID_QUOTE = "A1B2C3D4-0006-4000-8000-000000000006"
+UID_RECORD = "A1B2C3D4-0007-4000-8000-000000000007"
+UID_TOGGLE = "A1B2C3D4-0008-4000-8000-000000000008"
+UID_NOTIFY = "A1B2C3D4-0009-4000-8000-000000000009"
+UID_HOTKEY = "A1B2C3D4-0010-4000-8000-000000000010"
+
+# NSEvent 수식키 플래그. Alfred 는 연결마다 이 값으로 어떤 수식키를 눌렀을 때
+# 그 경로로 갈지 판단한다.
+MOD_NONE = 0
+MOD_CMD = 1048576
 
 README = """토스증권 Open API 로 시세와 계좌를 조회합니다. 조회 전용이며 주문 기능은 없습니다.
 
-■ 사용법
-  주가 <종목명|티커>   종목 검색 후 현재가. 엔터로 토스증권 종목 페이지 열기
-  잔고 [티커]          보유 종목과 평가손익
-  계좌                 계좌 목록과 매수가능금액. 엔터로 accountSeq 복사
+■ 사용법  (ts = Toss, 뒤에 한 글자)
+  tsp                  관심종목의 현재가와 등락률을 한 번에 봅니다
+                       (관심종목이 없으면 최근 조회한 종목을 보여줍니다)
+  tsp <종목명|티커>    종목 검색                          (price)
+  tsq <종목명|티커>    등락·시가/고가/저가·거래량·호가    (quote)
+  tsh [티커]           보유 종목과 평가손익               (holdings)
+  tsa                  계좌 목록과 매수가능금액           (accounts)
+                       엔터로 accountSeq 복사
+
+  ↩   토스증권에서 열기 (최근 조회에 기록됩니다)
+  ⌘↩  관심종목 추가/제거
+
+■ 핫키
+  이 워크플로우의 Hotkey 오브젝트는 비어 있습니다. 더블클릭해 원하는 키를
+  지정하면 Alfred 를 거치지 않고 관심종목 시세를 바로 띄울 수 있습니다.
 
 ■ 설정 (필수)
   1. 토스증권 WTS > 설정 > Open API 에서 앱을 등록해 client id/secret 을 발급받습니다.
@@ -44,7 +65,10 @@ README = """토스증권 Open API 로 시세와 계좌를 조회합니다. 조�
 
 ■ 참고
   - 계좌가 여러 개면 Account Seq 를 지정하세요. 비우면 첫 번째 계좌를 씁니다.
-    accountSeq 값은 '계좌' 키워드에서 엔터를 눌러 복사할 수 있습니다.
+    accountSeq 값은 tsa 에서 엔터를 눌러 복사할 수 있습니다.
+  - 등락률과 거래량은 API 가 시세와 함께 주지 않아 일봉 2개로 직접 계산합니다.
+    이 호출은 종목당 한 번이라 검색 결과에는 붙이지 않고, 종목 수가 정해져 있는
+    관심종목 목록과 상세 시세 화면에서만 씁니다.
   - 시스템 파이썬(/usr/bin/python3)만 사용하며 외부 패키지가 필요 없습니다.
   - 응답이 느리거나 rate limit 에 걸리면 각 Script Filter 를 열어
     'Please wait' 지연 값을 늘리세요.
@@ -87,21 +111,21 @@ def build():
     objects = [
         script_filter(
             UID_PRICE,
-            "주가",
+            "tsp",
             '/usr/bin/python3 price.py "$1"',
             "종목 시세 조회",
             "종목명 또는 티커로 검색해 현재가를 봅니다",
         ),
         script_filter(
             UID_HOLDINGS,
-            "잔고",
+            "tsh",
             '/usr/bin/python3 holdings.py "$1"',
             "보유 종목 조회",
             "보유 종목과 평가손익을 봅니다",
         ),
         script_filter(
             UID_ACCOUNTS,
-            "계좌",
+            "tsa",
             "/usr/bin/python3 accounts.py",
             "계좌 조회",
             "계좌 목록과 매수가능금액을 봅니다",
@@ -131,15 +155,78 @@ def build():
                 "transient": False,
             },
         },
+        script_filter(
+            UID_QUOTE,
+            "tsq",
+            '/usr/bin/python3 quote.py "$1"',
+            "상세 시세 조회",
+            "등락·시고저·거래량·호가를 봅니다",
+        ),
+        {
+            # 최근 조회를 기록한 뒤 받은 URL 을 그대로 흘려보낸다. Script Filter 와
+            # Open URL 사이에 끼워 쓴다.
+            "uid": UID_RECORD,
+            "type": "alfred.workflow.action.script",
+            "version": 2,
+            "config": {
+                "concurrently": False,
+                "escaping": 102,
+                "script": '/usr/bin/python3 record.py "$1"',
+                "scriptargtype": 1,
+                "scriptfile": "",
+                "type": 0,
+            },
+        },
+        {
+            "uid": UID_TOGGLE,
+            "type": "alfred.workflow.action.script",
+            "version": 2,
+            "config": {
+                "concurrently": False,
+                "escaping": 102,
+                "script": '/usr/bin/python3 toggle.py "$1"',
+                "scriptargtype": 1,
+                "scriptfile": "",
+                "type": 0,
+            },
+        },
+        {
+            "uid": UID_NOTIFY,
+            "type": "alfred.workflow.output.notification",
+            "version": 1,
+            "config": {
+                "lastpathcomponent": False,
+                "onlyshowifquerypopulated": True,
+                "removeextension": False,
+                "text": "{query}",
+                "title": "Toss Invest",
+            },
+        },
+        {
+            # 핫키는 일부러 비워둔다. 임의로 배정하면 기존 단축키와 충돌할 수 있어
+            # 사용자가 Alfred UI 에서 직접 지정하게 한다.
+            "uid": UID_HOTKEY,
+            "type": "alfred.workflow.trigger.hotkey",
+            "version": 2,
+            "config": {
+                "action": 0,
+                "argument": 0,
+                "focusedappvariable": False,
+                "focusedappvariablename": "",
+                "leftcursor": False,
+                "modsmode": 0,
+                "relatedAppsMode": 0,
+            },
+        },
     ]
 
-    def link(destination):
-        return [{
+    def link(destination, modifiers=MOD_NONE, subtext=""):
+        return {
             "destinationuid": destination,
-            "modifiers": 0,
-            "modifiersubtext": "",
+            "modifiers": modifiers,
+            "modifiersubtext": subtext,
             "vitoclose": False,
-        }]
+        }
 
     plist = {
         "bundleid": BUNDLE_ID,
@@ -152,16 +239,33 @@ def build():
         "disabled": False,
         "objects": objects,
         "connections": {
-            UID_PRICE: link(UID_OPEN_URL),
-            UID_HOLDINGS: link(UID_OPEN_URL),
-            UID_ACCOUNTS: link(UID_CLIPBOARD),
+            # ↩ 는 기록을 거쳐 링크로, ⌘↩ 는 관심종목 토글로 간다.
+            UID_PRICE: [
+                link(UID_RECORD),
+                link(UID_TOGGLE, MOD_CMD, "관심종목 토글"),
+            ],
+            UID_QUOTE: [
+                link(UID_RECORD),
+                link(UID_TOGGLE, MOD_CMD, "관심종목 토글"),
+            ],
+            UID_HOLDINGS: [link(UID_RECORD)],
+            UID_ACCOUNTS: [link(UID_CLIPBOARD)],
+            UID_RECORD: [link(UID_OPEN_URL)],
+            UID_TOGGLE: [link(UID_NOTIFY)],
+            # 핫키를 누르면 관심종목 목록(빈 쿼리의 주가 화면)이 바로 열린다.
+            UID_HOTKEY: [link(UID_PRICE)],
         },
         "uidata": {
-            UID_PRICE: {"xpos": 60, "ypos": 60},
-            UID_HOLDINGS: {"xpos": 60, "ypos": 200},
-            UID_ACCOUNTS: {"xpos": 60, "ypos": 340},
-            UID_OPEN_URL: {"xpos": 380, "ypos": 130},
-            UID_CLIPBOARD: {"xpos": 380, "ypos": 340},
+            UID_HOTKEY: {"xpos": 40, "ypos": 40},
+            UID_PRICE: {"xpos": 220, "ypos": 40},
+            UID_QUOTE: {"xpos": 220, "ypos": 180},
+            UID_HOLDINGS: {"xpos": 220, "ypos": 320},
+            UID_ACCOUNTS: {"xpos": 220, "ypos": 460},
+            UID_RECORD: {"xpos": 520, "ypos": 120},
+            UID_TOGGLE: {"xpos": 520, "ypos": 260},
+            UID_OPEN_URL: {"xpos": 760, "ypos": 120},
+            UID_NOTIFY: {"xpos": 760, "ypos": 260},
+            UID_CLIPBOARD: {"xpos": 520, "ypos": 460},
         },
         "userconfigurationconfig": [
             {

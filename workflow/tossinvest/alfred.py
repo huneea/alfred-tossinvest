@@ -13,8 +13,13 @@ import sys
 from .errors import TossError
 
 
-def item(title, subtitle="", arg=None, uid=None, valid=True, copy=None, icon=None):
-    """Script Filter 항목 하나를 만든다."""
+def item(title, subtitle="", arg=None, uid=None, valid=True, copy=None, icon=None,
+         mods=None):
+    """Script Filter 항목 하나를 만든다.
+
+    mods 는 {"cmd": {"arg": ..., "subtitle": ...}} 형태로, 수식키를 누른 채
+    실행했을 때 다른 오브젝트로 다른 값을 넘기는 데 쓴다.
+    """
     entry = {"title": title, "subtitle": subtitle, "valid": valid}
     if arg is not None:
         entry["arg"] = arg
@@ -24,7 +29,20 @@ def item(title, subtitle="", arg=None, uid=None, valid=True, copy=None, icon=Non
         entry["text"] = {"copy": copy}
     if icon is not None:
         entry["icon"] = {"path": icon}
+    if mods:
+        entry["mods"] = mods
     return entry
+
+
+def toggle_mod(symbol, is_saved):
+    """관심종목 토글용 ⌘ 수식키 정의."""
+    return {
+        "cmd": {
+            "arg": symbol,
+            "subtitle": "관심종목에서 제거" if is_saved else "관심종목에 추가",
+            "valid": True,
+        }
+    }
 
 
 def output(items, rerun=None):

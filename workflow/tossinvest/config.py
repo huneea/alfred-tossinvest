@@ -50,9 +50,24 @@ def cache_dir():
 
     Alfred 안에서는 alfred_workflow_cache 가 주어지지만, 터미널에서 직접 실행할
     때는 없으므로 표준 캐시 경로로 떨어뜨린다.
+
+    여기 있는 것은 언제 지워져도 다시 만들 수 있는 것만 둔다. 관심종목처럼 사용자가
+    쌓은 데이터는 data_dir() 로 간다.
     """
     path = os.environ.get("alfred_workflow_cache", "").strip()
     if not path:
         path = os.path.expanduser("~/Library/Caches/" + BUNDLE_ID)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def data_dir():
+    """사용자 데이터 디렉터리. 관심종목·최근 조회처럼 잃으면 안 되는 것을 둔다.
+
+    Alfred 는 캐시 디렉터리를 임의로 비울 수 있으므로 캐시와 반드시 분리한다.
+    """
+    path = os.environ.get("alfred_workflow_data", "").strip()
+    if not path:
+        path = os.path.expanduser("~/Library/Application Support/" + BUNDLE_ID)
     os.makedirs(path, exist_ok=True)
     return path

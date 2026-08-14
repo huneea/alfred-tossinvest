@@ -8,9 +8,10 @@ from __future__ import annotations
 import json
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 
-from . import client, config
-from .errors import ApiError
+from . import client, config, fmt
+from .errors import ApiError, TossError
 
 # 종목 마스터는 하루 한 번만 받으면 충분하다. Script Filter 는 타이핑마다
 # 실행되므로 매번 전종목을 내려받으면 rate limit 과 지연 둘 다 문제가 된다.
@@ -19,6 +20,10 @@ DEFAULT_MARKETS = ("KOSPI", "KOSDAQ")
 
 # GET /api/v1/prices 의 symbols 파라미터 상한.
 MAX_SYMBOLS_PER_CALL = 200
+
+# 등락률용 캔들을 동시에 몇 개까지 가져올지. MARKET_DATA_CHART 가 20 req/s 이므로
+# 그 아래로 넉넉히 잡는다.
+CHANGE_WORKERS = 6
 
 
 def accounts(token):
@@ -74,6 +79,113 @@ def prices(token, symbols):
             if symbol:
                 collected[symbol] = entry
     return collected
+
+
+def candles(token, symbol, interval="1d", count=2):
+    """시간순으로 정렬된 캔들 목록.
+
+    API 가 어떤 순서로 주는지 문서에 명시돼 있지 않으므로 timestamp 로 직접
+    정렬한다. 순서를 가정하면 전일 종가와 당일 종가가 뒤바뀔 수 있다.
+    """
+    result = client.get(
+        "/api/v1/candles",
+        token,
+        params={"symbol": symbol, "interval": interval, "count": count},
+    )
+    entries = (result or {}).get("candles") or []
+    return sorted(entries, key=lambda c: c.get("timestamp") or "")
+
+
+def daily_change(token, symbol):
+    """전일 종가 대비 등락과 당일 시/고/저·거래량.
+
+    /api/v1/prices 에는 등락률도 거래량도 없어서 일봉 2개로 직접 계산한다.
+    """
+    entries = candles(token, symbol, interval="1d", count=2)
+    if not entries:
+        return None
+
+    latest = entries[-1]
+    close = fmt.to_decimal(latest.get("closePrice"))
+    info = {
+        "open": latest.get("openPrice"),
+        "high": latest.get("highPrice"),
+        "low": latest.get("lowPrice"),
+        "close": latest.get("closePrice"),
+        "volume": latest.get("volume"),
+        "currency": latest.get("currency"),
+        "change": None,
+        "changeRate": None,
+        "prevClose": None,
+    }
+
+    if len(entries) < 2 or close is None:
+        return info
+
+    previous = fmt.to_decimal(entries[-2].get("closePrice"))
+    if previous is None or previous == 0:
+        return info
+
+    info["prevClose"] = entries[-2].get("closePrice")
+    info["change"] = close - previous
+    info["changeRate"] = (close - previous) / previous * 100
+    return info
+
+
+def daily_changes(token, symbols):
+    """여러 종목의 등락을 병렬로 모은다.
+
+    캔들은 종목당 한 번씩 호출해야 해서 순차로 돌리면 목록이 눈에 띄게 느려진다.
+    MARKET_DATA_CHART 는 20 req/s 이므로 동시 실행 수를 넉넉히 아래로 잡는다.
+    한 종목이 실패해도 화면 전체를 버리지 않고 그 종목만 비워둔다.
+    """
+    symbols = [s for s in symbols if s]
+    if not symbols:
+        return {}
+
+    collected = {}
+
+    def fetch(symbol):
+        try:
+            return symbol, daily_change(token, symbol)
+        except TossError:
+            return symbol, None
+
+    workers = min(CHANGE_WORKERS, len(symbols))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for symbol, info in pool.map(fetch, symbols):
+            collected[symbol] = info
+    return collected
+
+
+def orderbook(token, symbol):
+    """호가. {"asks": [...], "bids": [...]} 형태."""
+    result = client.get("/api/v1/orderbook", token, params={"symbol": symbol})
+    if not isinstance(result, dict):
+        return {"asks": [], "bids": []}
+    return {
+        "asks": result.get("asks") or [],
+        "bids": result.get("bids") or [],
+        "currency": result.get("currency"),
+    }
+
+
+def price_limits(token, symbol):
+    """상한가/하한가."""
+    return client.get("/api/v1/price-limits", token, params={"symbol": symbol}) or {}
+
+
+def symbol_names(token, symbols):
+    """종목코드 -> 종목명. 캐싱된 마스터에서 찾으므로 추가 호출이 없다."""
+    wanted = set(symbols)
+    if not wanted:
+        return {}
+    found = {}
+    for entry in stock_master(token):
+        symbol = entry.get("symbol")
+        if symbol in wanted:
+            found[symbol] = entry.get("name") or symbol
+    return found
 
 
 def _master_cache_file(market):

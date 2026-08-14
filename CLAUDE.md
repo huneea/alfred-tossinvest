@@ -31,21 +31,47 @@ Alfred 는 스크립트를 최소 PATH(`/bin:/usr/bin:/usr/local/bin`)로 실행
 
 ```
 workflow/                 # 이 디렉터리가 곧 Alfred 워크플로우 번들
-├── price.py              # Script Filter — 종목 검색 + 현재가
-├── holdings.py           # Script Filter — 보유 종목/평가손익
-├── accounts.py           # Script Filter — 계좌 목록 + 매수가능금액
+├── price.py              # Script Filter tsp — 관심종목 목록 / 종목 검색
+├── quote.py              # Script Filter tsq — 한 종목 상세 시세
+├── holdings.py           # Script Filter tsh — 보유 종목/평가손익
+├── accounts.py           # Script Filter tsa — 계좌 목록 + 매수가능금액
+├── record.py             # Run Script — 최근 조회 기록 후 URL 통과
+├── toggle.py             # Run Script — 관심종목 토글 (⌘↩)
 └── tossinvest/
-    ├── config.py         # 환경변수, 캐시 경로, 상수
+    ├── config.py         # 환경변수, 캐시/데이터 경로, 상수
     ├── errors.py         # TossError 계열 (title/subtitle 을 들고 다님)
     ├── client.py         # urllib HTTP, {result:...} 언랩, 오류 변환
     ├── auth.py           # OAuth2 토큰 발급 + 파일 캐시
     ├── api.py            # 도메인 조회 함수, 종목 마스터 캐시
+    ├── store.py          # 관심종목·최근 조회 영속 저장
     ├── fmt.py            # 금액/수익률 표시 포맷 (Decimal 기반)
     └── alfred.py         # Script Filter JSON 출력, run() 래퍼
+build/
+├── info_plist.py         # info.plist 생성 (오브젝트·연결·UID 정본)
+└── preserve_hotkey.py    # 동기화 시 사용자 지정 핫키 보존
+build.sh                  # 배포용 .alfredworkflow 번들
+sync.sh                   # 설치본에 즉시 반영 + Alfred 리로드
 ```
 
 진입 스크립트는 얇게 유지한다. 엔드포인트 경로와 응답 껍데기는 `api.py` 가
 전담하고, 진입 스크립트는 표시 로직만 담당한다.
+
+`record.py` 는 받은 URL 을 **반드시 그대로 다시 출력**해야 한다. Run Script 의
+출력이 다음 오브젝트의 `{query}` 가 되므로, 문자열을 바꾸면 링크가 열리지 않는다.
+
+## 캐시와 사용자 데이터를 섞지 않는다
+
+`config.cache_dir()` 은 지워져도 다시 만들 수 있는 것만 둔다 (토큰, 종목 마스터).
+관심종목·최근 조회처럼 사용자가 쌓은 데이터는 `config.data_dir()` 로 간다.
+Alfred 는 캐시 디렉터리를 임의로 비울 수 있다.
+
+## 설치본에 반영할 때
+
+`./sync.sh` 를 쓴다. 직접 복사하지 않는다. 두 가지를 잃기 쉽다.
+
+- `prefs.plist` — 사용자가 입력한 Client ID/Secret 이 여기 있다. 덮어쓰지 않는다.
+- `info.plist` 안의 핫키 — 사용자가 지정한 조합이 여기 저장된다. 생성한 plist 로
+  덮어쓰기 전에 `build/preserve_hotkey.py` 로 옮긴다.
 
 ## 오류를 다루는 방식
 
@@ -62,6 +88,13 @@ Alfred 디버거에서 스택을 볼 수 있게 둔다.
   `client.py` 가 403 을 이 안내 문구로 바꿔서 보여준다.
 - **Rate limit** — Script Filter 는 키 입력마다 실행된다. 토큰(`auth.py`)과
   종목 마스터(`api.py`)를 반드시 캐싱해야 한다. 캐싱 없이 호출을 추가하지 않는다.
+- **검색 결과에 종목당 호출을 붙이지 않는다** — `/api/v1/prices` 는 현재가만 주고
+  등락률·거래량이 없어서 `/api/v1/candles` 로 계산하는데, 이건 `symbol` 이 단수라
+  종목당 한 번씩 불러야 한다. 검색 결과 15건에 붙이면 키 입력마다 15회다.
+  종목 수가 정해진 화면(관심종목, 확정된 상세)에서만 쓰고, 그때도
+  `api.daily_changes()` 로 동시 실행 수를 제한해 병렬 호출한다.
+- **캔들 순서를 가정하지 않는다** — API 가 어떤 순서로 주는지 문서에 없다.
+  `api.candles()` 가 timestamp 로 정렬한다. 가정하면 등락 부호가 뒤집힌다.
 - **금액은 문자열로 온다** — 응답의 금액·수량·수익률은 전부 문자열이다.
   `float` 로 바꾸지 말고 `fmt.to_decimal()` 을 쓴다.
 
