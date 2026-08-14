@@ -25,6 +25,10 @@ MAX_SYMBOLS_PER_CALL = 200
 # 그 아래로 넉넉히 잡는다.
 CHANGE_WORKERS = 6
 
+# 기본 계좌 seq 캐시. 계좌 구성은 거의 바뀌지 않는다.
+ACCOUNT_SEQ_FILE = "account-seq.json"
+ACCOUNT_SEQ_TTL = 24 * 60 * 60
+
 # 전일 종가 캐시. 다음 장이 열릴 때까지 유효하다.
 PREV_CLOSE_FILE = "prev-close.json"
 KST_OFFSET = 9 * 3600
@@ -47,11 +51,43 @@ def resolve_account_seq(token):
     if configured:
         return configured
 
+    # 계좌 구성은 거의 바뀌지 않는다. 화면이 자동 갱신될 때마다 계좌 목록을 다시
+    # 부르면 조회 한 번에 호출이 두 번씩 나가므로 결과를 캐싱한다.
+    cached = _read_cached_seq()
+    if cached:
+        return cached
+
     found = accounts(token)
     if not found:
         raise ApiError("계좌를 찾을 수 없습니다", "이 API 키에 연결된 계좌가 없습니다.")
     # 숫자로 오는 경우가 있어 문자열로 맞춰둔다. 헤더 값으로 그대로 쓰인다.
-    return str(found[0].get("accountSeq"))
+    seq = str(found[0].get("accountSeq"))
+    _write_cached_seq(seq)
+    return seq
+
+
+def _account_seq_file():
+    return os.path.join(config.cache_dir(), ACCOUNT_SEQ_FILE)
+
+
+def _read_cached_seq():
+    try:
+        with open(_account_seq_file(), "r", encoding="utf-8") as handle:
+            cached = json.load(handle)
+    except (IOError, OSError, ValueError):
+        return None
+    if not isinstance(cached, dict) or cached.get("expires_at", 0) <= time.time():
+        return None
+    value = cached.get("value")
+    return value if isinstance(value, str) and value else None
+
+
+def _write_cached_seq(seq):
+    try:
+        with open(_account_seq_file(), "w", encoding="utf-8") as handle:
+            json.dump({"value": seq, "expires_at": time.time() + ACCOUNT_SEQ_TTL}, handle)
+    except (IOError, OSError):
+        pass
 
 
 def holdings(token, account_seq):

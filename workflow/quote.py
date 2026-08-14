@@ -60,7 +60,7 @@ def _candidates(token, matches):
                 mods=alfred.toggle_mod(symbol, symbol in saved),
             )
         )
-    alfred.output(items)
+    alfred.live(items)
 
 
 def _detail(token, entry):
@@ -154,7 +154,7 @@ def _detail(token, entry):
     except Exception:
         pass
 
-    alfred.output(items)
+    alfred.live(items)
 
 
 def main():

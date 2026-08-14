@@ -96,7 +96,7 @@ def main():
     saved = set(store.watchlist())
     items = [_overview_item(overview)]
     items.extend(_position_item(position, saved) for position in positions)
-    alfred.output(items)
+    alfred.live(items)
 
 
 if __name__ == "__main__":

@@ -93,7 +93,7 @@ def main():
             )
         )
 
-    alfred.output(items)
+    alfred.live(items)
 
 
 if __name__ == "__main__":

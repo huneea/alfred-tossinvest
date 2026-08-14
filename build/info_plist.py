@@ -57,7 +57,7 @@ README = """토스증권 Open API 로 시세와 계좌를 조회합니다. 조�
 ■ 관심종목 관리
   등록  tsp 로 종목을 검색한 뒤 ⌘↩
   제거  tsw 에서 해당 종목에 ⌘↩ (tsp 검색 결과에서도 됩니다)
-  확인  tsw — 등록한 종목만 보여줍니다. ★ 표시는 이미 등록된 종목입니다.
+  확인  tsw — 등록한 종목만 보여줍니다. 별 아이콘이 등록된 종목입니다.
 
 ■ 핫키
   이 워크플로우의 Hotkey 오브젝트는 비어 있습니다. 더블클릭해 원하는 키를
@@ -71,12 +71,17 @@ README = """토스증권 Open API 로 시세와 계좌를 조회합니다. 조�
      네트워크를 옮기면 IP 를 다시 등록해야 합니다.
   3. 위 Workflow Configuration 에 client id/secret 을 입력합니다.
 
+■ 자동 갱신
+  결과창을 열어두면 시세가 주기적으로 다시 불러와집니다. 기본 2초이며, 위
+  Workflow Configuration 의 '자동 갱신(초)' 에서 바꾸거나 0 으로 끌 수 있습니다.
+
 ■ 참고
   - 계좌가 여러 개면 Account Seq 를 지정하세요. 비우면 첫 번째 계좌를 씁니다.
     accountSeq 값은 tsa 에서 엔터를 눌러 복사할 수 있습니다.
-  - 등락률과 거래량은 API 가 시세와 함께 주지 않아 일봉 2개로 직접 계산합니다.
-    이 호출은 종목당 한 번이라 검색 결과에는 붙이지 않고, 종목 수가 정해져 있는
-    관심종목 목록과 상세 시세 화면에서만 씁니다.
+  - 등락률은 API 가 시세와 함께 주지 않아 전일 종가로 직접 계산합니다. 전일
+    종가는 다음 장이 열릴 때까지 캐싱하므로 종목당 조회는 처음 한 번뿐입니다.
+  - 관심종목이 아주 많거나 자동 갱신 주기가 짧으면 rate limit 에 걸릴 수
+    있습니다. 그럴 때는 갱신 주기를 늘리거나 0 으로 끄세요.
   - 시스템 파이썬(/usr/bin/python3)만 사용하며 외부 패키지가 필요 없습니다.
   - 응답이 느리거나 rate limit 에 걸리면 각 Script Filter 를 열어
     'Please wait' 지연 값을 늘리세요.
@@ -321,11 +326,20 @@ def build():
                 "description": "사용할 계좌의 accountSeq. 비우면 첫 번째 계좌를 씁니다",
                 "config": {"default": "", "placeholder": "선택", "required": False, "trim": True},
             },
+            {
+                "type": "textfield",
+                "variable": "TOSS_REFRESH_SECONDS",
+                "label": "자동 갱신(초)",
+                "description": "결과창을 열어둔 동안 시세를 다시 불러오는 주기. "
+                               "0 이면 끕니다. 1~5 초까지 지정할 수 있습니다",
+                "config": {"default": "2", "placeholder": "2", "required": False, "trim": True},
+            },
         ],
         "variables": {
             "TOSS_CLIENT_ID": "",
             "TOSS_CLIENT_SECRET": "",
             "TOSS_ACCOUNT_SEQ": "",
+            "TOSS_REFRESH_SECONDS": "2",
         },
         # 워크플로우를 .alfredworkflow 로 내보낼 때 이 값들을 빼고 내보낸다.
         # 자격증명이 배포 파일에 박혀 나가는 사고를 막는다.

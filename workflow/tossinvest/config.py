@@ -19,6 +19,13 @@ BASE_URL = "https://openapi.tossinvest.com"
 ENV_CLIENT_ID = "TOSS_CLIENT_ID"
 ENV_CLIENT_SECRET = "TOSS_CLIENT_SECRET"
 ENV_ACCOUNT_SEQ = "TOSS_ACCOUNT_SEQ"
+ENV_REFRESH = "TOSS_REFRESH_SECONDS"
+
+# Alfred 가 rerun 으로 받아주는 범위는 0.1~5.0 초다. 그보다 자주 돌면 값을 받아
+# 그리기도 전에 다시 실행되고 rate limit 만 축낸다.
+REFRESH_MIN = 1.0
+REFRESH_MAX = 5.0
+REFRESH_DEFAULT = 2.0
 
 # 네트워크 타임아웃(초). Alfred 는 응답이 느리면 사용자가 그냥 창을 닫아버리므로
 # 넉넉하게 잡기보다 빨리 실패시키고 원인을 보여주는 편이 낫다.
@@ -43,6 +50,24 @@ def client_credentials():
 def account_seq():
     """기본 계좌 seq. 미설정이면 None — 호출부가 계좌 목록에서 첫 번째를 고른다."""
     return os.environ.get(ENV_ACCOUNT_SEQ, "").strip() or None
+
+
+def refresh_seconds():
+    """결과 화면 자동 갱신 주기(초). 끄면 None.
+
+    Alfred 는 Script Filter 출력의 rerun 값만큼 기다렸다가 같은 화면을 다시
+    실행한다. 갱신마다 API 를 다시 부르므로 사용자가 끌 수 있어야 한다.
+    """
+    raw = os.environ.get(ENV_REFRESH, "").strip()
+    if not raw:
+        return REFRESH_DEFAULT
+    try:
+        value = float(raw)
+    except ValueError:
+        return REFRESH_DEFAULT
+    if value <= 0:
+        return None
+    return min(REFRESH_MAX, max(REFRESH_MIN, value))
 
 
 def cache_dir():

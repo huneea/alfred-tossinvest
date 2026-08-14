@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import sys
 
-from . import icons
+from . import config, icons
 from .errors import TossError
 
 
@@ -56,6 +56,18 @@ def output(items, rerun=None):
         payload["rerun"] = rerun
     json.dump(payload, sys.stdout, ensure_ascii=False)
     sys.stdout.write("\n")
+
+
+def live(items):
+    """수치가 계속 변하는 화면의 출력.
+
+    Alfred 는 rerun 값(초)만큼 기다렸다가 같은 Script Filter 를 다시 실행한다.
+    결과창이 열려 있는 동안만 돈다. 갱신마다 API 를 다시 부르므로 사용자가 끌 수
+    있어야 하고, 꺼져 있으면 rerun 을 아예 넣지 않는다.
+
+    안내·오류 화면에는 쓰지 않는다. 다시 불러도 결과가 달라지지 않는다.
+    """
+    output(items, rerun=config.refresh_seconds())
 
 
 def empty(title, subtitle="", icon=icons.WARN):

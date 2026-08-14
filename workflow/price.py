@@ -28,7 +28,7 @@ def _search(token, query):
     rates = view.change_rates(token, symbols, quotes)
     saved = set(store.watchlist())
 
-    alfred.output([
+    alfred.live([
         view.stock_item(
             entry.get("symbol") or "",
             entry.get("name") or entry.get("symbol") or "",
@@ -51,12 +51,12 @@ def main():
 
     saved = store.watchlist()
     if saved:
-        alfred.output(view.listing(token, saved, "관심종목"))
+        alfred.live(view.listing(token, saved, "관심종목"))
         return
 
     seen = store.recent()
     if seen:
-        alfred.output(view.listing(token, seen, "최근 조회"))
+        alfred.live(view.listing(token, seen, "최근 조회"))
         return
 
     alfred.empty(
