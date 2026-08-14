@@ -53,12 +53,12 @@ def money(value, currency="KRW"):
 
 
 def signed_rate(value):
-    """수익률을 부호와 함께. 상승 ▲ / 하락 ▼ 로 방향을 표시한다."""
+    """등락률을 부호와 함께. 보합은 부호 없이 0.00% 로 둔다."""
     rate = to_decimal(value)
     if rate is None:
         return "-"
-    marker = "▲" if rate > 0 else ("▼" if rate < 0 else "―")
-    return "{0} {1}%".format(marker, number(abs(rate), 2))
+    sign = "+" if rate > 0 else ("-" if rate < 0 else "")
+    return "{0}{1}%".format(sign, number(abs(rate), 2))
 
 
 def signed_money(value, currency="KRW"):
