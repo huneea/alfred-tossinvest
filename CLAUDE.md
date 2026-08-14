@@ -243,6 +243,12 @@ GET /api/v1/rankings?type=MARKET_TRADING_AMOUNT&marketCountry=KR&duration=realti
 `TOP_GAINERS`/`TOP_LOSERS` 는 `basePrice` 가 duration 시작 시점 기준가라 쓰면 안
 된다. 나머지 타입은 항상 전일 기준가다.
 
+## 값이 비는 게 정상인 경우가 있다
+
+투자자별 매매동향의 `individual` 은 **당일 장중에는 null 이다.** 개인 확정치가
+당일 저녁에야 채워진다고 문서에 명시돼 있다. 기관의 `breakdown` 도 같다.
+빈 값을 오류로 취급하지 말고, 화면에도 왜 비었는지 적어 준다.
+
 ## 손익률 단위를 섞지 않는다
 
 holdings 계열의 `rate` 는 **소수비율**(0.1077 = 10.77%)이고, 캔들에서 직접

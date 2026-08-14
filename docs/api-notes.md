@@ -183,6 +183,37 @@ GET /api/v1/rankings?type=MARKET_TRADING_AMOUNT&marketCountry=KR&duration=realti
 `TOP_LOSERS`, `TOSS_SECURITIES_TRADING_AMOUNT`, `TOSS_SECURITIES_TRADING_VOLUME`.
 `TOP_GAINERS`/`TOP_LOSERS` 는 `basePrice` 가 duration 시작 시점 기준가다.
 
+## 투자자별 매매동향
+
+```
+GET /api/v1/stocks/{symbol}/investor-trading?count=1
+```
+
+국내 종목(KRX 6자리)만 지원한다. 응답은
+`result: {nextUntil, records: [StockInvestorTradingRecord]}` 이고 최신순이다.
+
+```
+StockInvestorTradingRecord
+├── date, updatedAt
+├── individual      InvestorTradingVolume
+├── foreigner       InvestorTradingVolume          등록 외국인 기준(미등록 제외)
+├── institution     StockInstitutionTradingVolume  기관 합계 + breakdown 7개
+├── otherCorporation
+├── foreignerHolding
+└── cfd
+
+InvestorTradingVolume = { buyVolume, sellVolume, netBuyVolume }
+```
+
+**순매수는 금액이 아니라 거래량(주)이다.** `netBuyVolume` = 매수 − 매도, 음수면
+순매도.
+
+**당일 개인 잠정치는 제공되지 않아 null 이고 당일 저녁 확정치부터 채워진다.**
+기관의 `breakdown` 7개 분류도 마찬가지다. 값이 비는 것은 오류가 아니다.
+
+투자자별 **랭킹은 없다.** RankingType 에 해당 항목이 없고, 이 엔드포인트는
+`symbol` 이 단수라 시장 전체를 훑으려면 종목 수만큼 호출해야 한다.
+
 ## 랭킹
 
 ```
