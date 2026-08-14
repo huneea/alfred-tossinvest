@@ -97,25 +97,36 @@ def _detail(token, entry):
             fmt.signed_rate(rate), fmt.signed_money(change.get("change"), currency)
         )
 
+    # 일봉 종가가 기준가와 다르면 그 기준의 등락률도 함께 알려준다. 기준가는
+    # 통합(KRX+NXT) 최종가, 일봉 종가는 정규장 종가로 보이나 확정된 것은 아니다.
+    # 같은 등락률 이야기이므로 별도 행 대신 헤드라인 부제에 붙인다.
+    from_candle = change.get("candlePrevClose")
+    regular = ""
+    if base is not None and from_candle is not None and fmt.to_decimal(base) != fmt.to_decimal(from_candle):
+        _, regular_rate = api.change_against(quote.get("lastPrice"), from_candle)
+        if regular_rate is not None:
+            regular = "정규장 {0}".format(fmt.signed_rate(regular_rate))
+
     items = [
         row(
             headline,
-            "{0} · {1} · ↩ 토스증권에서 열기".format(name, symbol),
+            " · ".join(part for part in (name, symbol, regular, "↩ 열기") if part),
             icons.for_stock(symbol, saved),
         ),
+        # 시고저와 거래량은 같은 일봉에서 나온 값이라 한 행으로 묶는다. Alfred 가
+        # 한 번에 9행까지만 보여주므로 행 하나가 아깝다.
         row(
             "시 {0} · 고 {1} · 저 {2}".format(
                 fmt.money(change.get("open"), currency),
                 fmt.money(change.get("high"), currency),
                 fmt.money(change.get("low"), currency),
             ),
-            "{0} 시가 · 고가 · 저가".format("당일" if change.get("isToday") else "전일"),
+            "{0} · 거래량 {1} · 전일 종가 {2}".format(
+                "당일" if change.get("isToday") else "전일",
+                fmt.number(change.get("volume")),
+                fmt.money(change.get("prevClose"), currency),
+            ),
             icons.CANDLE,
-        ),
-        row(
-            "거래량 {0}".format(fmt.number(change.get("volume"))),
-            "전일 종가 {0}".format(fmt.money(change.get("prevClose"), currency)),
-            icons.VOLUME,
         ),
     ]
 
@@ -152,24 +163,6 @@ def _detail(token, entry):
             "장 시간이 아니거나 호가를 제공하지 않는 종목입니다",
             icons.WARN,
         ))
-
-    # 일봉 종가가 기준가와 다르면 그 기준의 등락률도 함께 보여준다. 기준가는
-    # 통합(KRX+NXT) 최종가, 일봉 종가는 정규장 종가로 보이나 확정된 것은 아니라
-    # 근거가 된 종가를 함께 적어 라벨이 틀려도 값은 판단할 수 있게 한다.
-    from_candle = change.get("candlePrevClose")
-    if base is not None and from_candle is not None and fmt.to_decimal(base) != fmt.to_decimal(from_candle):
-        regular_change, regular_rate = api.change_against(quote.get("lastPrice"), from_candle)
-        if regular_rate is not None:
-            items.append(row(
-                "정규장 대비 {0}  ({1})".format(
-                    fmt.signed_rate(regular_rate),
-                    fmt.signed_money(regular_change, currency),
-                ),
-                "정규장 종가 {0} · 위 등락률은 기준가 {1} 기준".format(
-                    fmt.money(from_candle, currency), fmt.money(base, currency),
-                ),
-                icons.CANDLE,
-            ))
 
     # 투자자별 순매수. 일별 값이라 캐싱되므로 자동 갱신 때마다 나가지는 않는다.
     try:
