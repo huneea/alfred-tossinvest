@@ -151,6 +151,24 @@ def _detail(token, entry):
             icons.WARN,
         ))
 
+    # 일봉 종가가 기준가와 다르면 그 기준의 등락률도 함께 보여준다. 기준가는
+    # 통합(KRX+NXT) 최종가, 일봉 종가는 정규장 종가로 보이나 확정된 것은 아니라
+    # 근거가 된 종가를 함께 적어 라벨이 틀려도 값은 판단할 수 있게 한다.
+    from_candle = change.get("candlePrevClose")
+    if base is not None and from_candle is not None and fmt.to_decimal(base) != fmt.to_decimal(from_candle):
+        regular_change, regular_rate = api.change_against(quote.get("lastPrice"), from_candle)
+        if regular_rate is not None:
+            items.append(row(
+                "정규장 대비 {0}  ({1})".format(
+                    fmt.signed_rate(regular_rate),
+                    fmt.signed_money(regular_change, currency),
+                ),
+                "정규장 종가 {0} · 위 등락률은 기준가 {1} 기준".format(
+                    fmt.money(from_candle, currency), fmt.money(base, currency),
+                ),
+                icons.CANDLE,
+            ))
+
     upper = limits.get("upperLimitPrice")
     lower = limits.get("lowerLimitPrice")
     if upper is not None or lower is not None:

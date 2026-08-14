@@ -309,9 +309,12 @@ def daily_change(token, symbol, last_price=None, prev_close=None):
     }
 
     reference = last_price if fmt.to_decimal(last_price) is not None else latest.get("closePrice")
-    # 기준가를 받았으면 그것을 쓴다. 캔들 종가는 기준가와 어긋나는 경우가 있어
-    # (실측 확인) 기준가를 구할 수 없을 때의 대체 수단으로만 쓴다.
-    previous = prev_close if prev_close is not None else previous_close(entries)
+    # 일봉이 말하는 전일 종가. 기준가와 다를 수 있어(거래소 차이로 추정) 등락률을
+    # 두 기준으로 보여줄 때 쓴다.
+    info["candlePrevClose"] = previous_close(entries)
+
+    # 등락 계산에는 기준가를 쓴다. 앱·거래소가 그 기준이다.
+    previous = prev_close if prev_close is not None else info["candlePrevClose"]
     change, rate = change_against(reference, previous)
     if change is None:
         return info
