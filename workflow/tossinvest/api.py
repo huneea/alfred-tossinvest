@@ -182,49 +182,6 @@ def previous_close(entries, today=None):
     return None
 
 
-# 랭킹은 토스가 basePrice(기준가)와 changeRate 를 직접 주는 유일한 곳이다.
-# TOP_GAINERS/TOP_LOSERS 는 duration 시작 시점 기준가라 쓰면 안 되고, 나머지 타입은
-# 항상 전일 기준가다. 거래대금 상위가 대형주를 가장 넓게 담는다.
-RANKING_TYPE = "MARKET_TRADING_AMOUNT"
-RANKING_COUNT = 100
-
-
-def ranking_price(token, symbol, market_country="KR"):
-    """랭킹에서 해당 종목의 가격 정보를 찾는다.
-
-    (가격 dict 또는 None, 무슨 일이 있었는지 설명) 을 돌려준다. 못 찾은 이유를
-    호출부가 화면에 띄울 수 있어야 한다. 실패를 조용히 None 으로만 돌려주면
-    '순위 밖' 인지 '호출 실패' 인지 구분할 수 없다.
-    """
-    result = client.get(
-        "/api/v1/rankings",
-        token,
-        params={
-            "type": RANKING_TYPE,
-            "marketCountry": market_country,
-            "duration": "realtime",
-            "count": RANKING_COUNT,
-        },
-    )
-
-    # 응답 껍데기가 목록인지 dict 인지 문서로 확인하지 못했다. 둘 다 받아보고,
-    # 어느 쪽도 아니면 실제로 온 모양을 그대로 알려준다.
-    if isinstance(result, list):
-        entries = result
-    elif isinstance(result, dict):
-        entries = result.get("items") or result.get("rankings") or []
-        if not entries:
-            return None, "응답 형태가 예상과 다릅니다: 키 {0}".format(
-                ", ".join(sorted(result.keys())) or "없음")
-    else:
-        return None, "응답이 비었습니다"
-
-    for entry in entries:
-        if entry.get("symbol") == symbol:
-            return entry.get("price") or {}, None
-    return None, "{0}위 안에 없습니다 ({1}건 조회)".format(RANKING_COUNT, len(entries))
-
-
 def change_against(last_price, prev_close):
     """(등락금액, 등락률 %) 를 돌려준다. 계산할 수 없으면 (None, None)."""
     last = fmt.to_decimal(last_price)
@@ -352,13 +309,9 @@ def daily_change(token, symbol, last_price=None, prev_close=None):
     }
 
     reference = last_price if fmt.to_decimal(last_price) is not None else latest.get("closePrice")
-    # 캔들이 말하는 전일 종가. 기준가와 어긋나면 데이터가 이상하다는 신호라
-    # 계산에 쓰지 않더라도 값 자체는 들고 나간다.
-    from_candle = previous_close(entries)
-    info["candlePrevClose"] = from_candle
-
-    # 기준가를 받았으면 그것을 쓴다.
-    previous = prev_close if prev_close is not None else from_candle
+    # 기준가를 받았으면 그것을 쓴다. 캔들 종가는 기준가와 어긋나는 경우가 있어
+    # (실측 확인) 기준가를 구할 수 없을 때의 대체 수단으로만 쓴다.
+    previous = prev_close if prev_close is not None else previous_close(entries)
     change, rate = change_against(reference, previous)
     if change is None:
         return info

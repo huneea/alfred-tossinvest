@@ -146,9 +146,32 @@ Account 가 아니라 **ORDER_INFO** rate limit 그룹(6 req/s, 09:00–09:10 KS
 1,593,000 × 0.7 = 1,115,100 → 올림          = 1,116,000  (응답과 일치)
 ```
 
-**캔들 종가를 쓰면 안 된다.** `adjusted` 기본값이 true 라 수정주가가 온다. 같은
-종목에서 캔들 1,572,000 vs 기준가 1,593,000 으로 1.3% 차이가 났고, 등락률이
-3.88% 로 나와 앱의 2.6% 와 어긋났다.
+**캔들 종가를 쓰면 안 된다.** 캔들이 주는 전일 종가가 기준가와 어긋난다. 실측:
+
+```
+SK하이닉스 (2026-08-14)
+  캔들 전일 종가 adjusted=true   1,572,000
+  캔들 전일 종가 adjusted=false  1,572,000   ← 보정을 꺼도 같다
+  기준가 (상하한가 역산)          1,593,000
+  랭킹 basePrice                1,593,000   ← 토스가 직접 주는 값
+```
+
+`adjusted` 를 꺼도 같으므로 수정주가 문제가 아니다. **원인은 밝히지 못했다.**
+다만 기준가 쪽이 맞다는 것은 상하한가 검산과 랭킹 `basePrice` 두 경로로 확인됐다.
+
+`RankingPrice` 모델이 등락률을 `(lastPrice - basePrice) / basePrice` 로 정의하며,
+`changeRate` 는 소수 4자리 소수비율(`0.0382`)이라 앱 표시는 3.82% 가 된다.
+우리는 `61,000 / 1,593,000 = 3.8292%` 를 3.83% 로 보여주므로 0.01%p 더 정밀하다.
+
+### 랭킹으로 대조하기
+
+```
+GET /api/v1/rankings?type=MARKET_TRADING_AMOUNT&marketCountry=KR&duration=realtime&count=100
+```
+
+`RankingType`: `MARKET_TRADING_AMOUNT`, `MARKET_TRADING_VOLUME`, `TOP_GAINERS`,
+`TOP_LOSERS`, `TOSS_SECURITIES_TRADING_AMOUNT`, `TOSS_SECURITIES_TRADING_VOLUME`.
+`TOP_GAINERS`/`TOP_LOSERS` 는 `basePrice` 가 duration 시작 시점 기준가다.
 
 ## 오류
 

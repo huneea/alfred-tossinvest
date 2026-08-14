@@ -16,7 +16,6 @@ from __future__ import annotations
 import sys
 
 from tossinvest import alfred, api, auth, fmt, icons, store, text
-from tossinvest.errors import TossError
 
 STOCK_URL = "https://tossinvest.com/stocks/{0}"
 
@@ -151,49 +150,6 @@ def _detail(token, entry):
             "장 시간이 아니거나 호가를 제공하지 않는 종목입니다",
             icons.WARN,
         ))
-
-    # 기준가와 캔들이 말하는 전일 종가가 다르면 그 사실을 숨기지 않고 보여준다.
-    # 어느 쪽이 이상한지 판단하려면 보정 없는 원본 종가까지 있어야 하므로 이때만
-    # 한 번 더 받는다. 평소(두 값이 같을 때)에는 이 줄도 호출도 없다.
-    from_candle = change.get("candlePrevClose")
-    if base is not None and from_candle is not None and fmt.to_decimal(base) != fmt.to_decimal(from_candle):
-        try:
-            raw = api.previous_close(
-                api.candles(token, symbol, interval="1d", count=3, adjusted=False)
-            )
-        except Exception:
-            raw = None
-        items.append(row(
-            "전일 종가가 서로 다릅니다",
-            "기준가 {0} · 캔들(보정) {1} · 캔들(원본) {2}".format(
-                fmt.money(base, currency),
-                fmt.money(from_candle, currency),
-                fmt.money(raw, currency),
-            ),
-            icons.WARN,
-        ))
-
-        # 토스가 basePrice 를 직접 주는 유일한 경로. 거래대금 상위권 종목이면
-        # 여기서 정답을 그대로 확인할 수 있다.
-        try:
-            official, note = api.ranking_price(token, symbol)
-        except TossError as exc:
-            official, note = None, "{0} {1}".format(exc.title, exc.subtitle).strip()
-
-        if official:
-            items.append(row(
-                "토스 랭킹이 주는 값",
-                "기준가 {0} · 현재가 {1} · 등락률 {2}".format(
-                    fmt.money(official.get("basePrice"), currency),
-                    fmt.money(official.get("lastPrice"), currency),
-                    fmt.signed_ratio(official.get("changeRate")),
-                ),
-                icons.WARN,
-            ))
-        else:
-            # 못 가져온 이유를 감추지 않는다. 순위 밖인지 호출 실패인지 구분돼야
-            # 다음에 무엇을 볼지 정할 수 있다.
-            items.append(row("토스 랭킹을 가져오지 못했습니다", note or "알 수 없음", icons.WARN))
 
     upper = limits.get("upperLimitPrice")
     lower = limits.get("lowerLimitPrice")
