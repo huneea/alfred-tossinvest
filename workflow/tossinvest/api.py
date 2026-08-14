@@ -283,6 +283,55 @@ def prev_closes(token, symbols):
     return {symbol: known.get(symbol) or {} for symbol in symbols}
 
 
+# 투자자별 매매동향. 일별 값이지만 장중 잠정치가 갱신되고 개인 확정치는 당일
+# 저녁에야 채워지므로 짧게 캐싱한다.
+INVESTOR_FILE = "investor.json"
+INVESTOR_TTL = 600
+
+
+def _investor_file():
+    return os.path.join(config.cache_dir(), INVESTOR_FILE)
+
+
+def _read_investor_cache():
+    try:
+        with open(_investor_file(), "r", encoding="utf-8") as handle:
+            cached = json.load(handle)
+    except (IOError, OSError, ValueError):
+        return {}
+    return cached if isinstance(cached, dict) else {}
+
+
+def investor_trading(token, symbol):
+    """가장 최근 1일의 투자자별 매매동향. 없으면 None.
+
+    국내 종목(KRX 6자리)만 지원하는 엔드포인트다. 그 외 심볼은 부르지 않는다.
+    """
+    if not (symbol or "").isdigit() or len(symbol) != 6:
+        return None
+
+    cache = _read_investor_cache()
+    entry = cache.get(symbol)
+    if isinstance(entry, dict) and time.time() - entry.get("at", 0) < INVESTOR_TTL:
+        return entry.get("record")
+
+    result = client.get(
+        "/api/v1/stocks/{0}/investor-trading".format(symbol),
+        token,
+        params={"count": 1},
+    )
+    records = (result or {}).get("records") or []
+    record = records[0] if records else None
+
+    cache[symbol] = {"at": time.time(), "record": record}
+    try:
+        with open(_investor_file(), "w", encoding="utf-8") as handle:
+            json.dump(cache, handle, ensure_ascii=False, default=str)
+    except (IOError, OSError):
+        pass
+    return record
+
+
 # 랭킹. basePrice·changeRate 를 직접 주는 유일한 엔드포인트다.
 # TOP_GAINERS/TOP_LOSERS 는 basePrice 가 duration 시작 시점 기준가이고, 나머지는
 # 항상 전일 기준가다.

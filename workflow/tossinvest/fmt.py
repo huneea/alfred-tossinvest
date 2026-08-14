@@ -90,6 +90,15 @@ def signed_ratio(value):
     return signed_rate(ratio * 100)
 
 
+def signed_number(value, unit=""):
+    """부호를 붙인 수량. 순매수처럼 음수가 의미를 갖는 값에 쓴다."""
+    amount = to_decimal(value)
+    if amount is None:
+        return "-"
+    sign = "+" if amount > 0 else ("-" if amount < 0 else "")
+    return "{0}{1}{2}".format(sign, number(abs(amount)), unit)
+
+
 def korean_amount(value):
     """큰 금액을 조·억 단위로 줄인다. 거래대금처럼 자릿수가 큰 값에 쓴다."""
     amount = to_decimal(value)

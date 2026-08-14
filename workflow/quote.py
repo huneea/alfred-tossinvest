@@ -170,6 +170,30 @@ def _detail(token, entry):
                 icons.CANDLE,
             ))
 
+    # 투자자별 순매수. 일별 값이라 캐싱되므로 자동 갱신 때마다 나가지는 않는다.
+    try:
+        flow = api.investor_trading(token, symbol)
+    except Exception:
+        flow = None
+    if flow:
+        def net(group):
+            return (flow.get(group) or {}).get("netBuyVolume")
+
+        detail = "투자자별 순매수 ({0} 기준)".format(flow.get("date") or "-")
+        if net("individual") is None:
+            # 문서에 명시돼 있다. 값이 비는 게 오류가 아니라는 것을 알려준다.
+            detail += " · 개인 확정치는 장 마감 후 채워집니다"
+
+        items.append(row(
+            "외국인 {0} · 기관 {1} · 개인 {2}".format(
+                fmt.signed_number(net("foreigner"), "주"),
+                fmt.signed_number(net("institution"), "주"),
+                fmt.signed_number(net("individual"), "주"),
+            ),
+            detail,
+            icons.VOLUME,
+        ))
+
     upper = limits.get("upperLimitPrice")
     lower = limits.get("lowerLimitPrice")
     if upper is not None or lower is not None:
