@@ -21,7 +21,7 @@
 
 ```
 user.name   huneea
-user.email  67728580+huneea@users.noreply.github.com
+user.email  jhh992000@gmail.com
 ```
 
 **`.git/config` 는 클론하면 따라오지 않는다.** 새로 클론했거나 커밋 전에 확인이
