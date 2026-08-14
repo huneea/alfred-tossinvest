@@ -33,7 +33,7 @@ ACCOUNT_SEQ_TTL = 24 * 60 * 60
 PREV_CLOSE_FILE = "prev-close.json"
 # 저장된 값을 만드는 방식이 바뀌면 올린다. 예전 방식으로 계산해 둔 값이 만료 전까지
 # 살아남아 잘못된 등락률을 계속 보여주는 것을 막는다.
-PREV_CLOSE_VERSION = 2
+PREV_CLOSE_VERSION = 3
 KST_OFFSET = 9 * 3600
 SESSION_OPEN_HOUR = 9
 
@@ -247,6 +247,13 @@ def prev_closes(token, symbols):
 
     if missing:
         def fetch(symbol):
+            # 기준가를 먼저 쓴다. 캔들 종가는 수정주가라 등락률 기준으로 맞지 않는다.
+            try:
+                base = base_price(token, symbol)
+                if base is not None:
+                    return symbol, base
+            except TossError:
+                pass
             try:
                 entries = candles(token, symbol, interval="1d", count=3)
             except TossError:
@@ -263,7 +270,7 @@ def prev_closes(token, symbols):
     return {symbol: known.get(symbol) for symbol in symbols}
 
 
-def daily_change(token, symbol, last_price=None):
+def daily_change(token, symbol, last_price=None, prev_close=None):
     """전일 종가 대비 등락과 당일 시/고/저·거래량.
 
     /api/v1/prices 에는 등락률도 거래량도 없어서 일봉 2개로 직접 계산한다.
@@ -296,7 +303,8 @@ def daily_change(token, symbol, last_price=None):
     }
 
     reference = last_price if fmt.to_decimal(last_price) is not None else latest.get("closePrice")
-    previous = previous_close(entries)
+    # 기준가를 받았으면 그것을 쓴다. 캔들 종가는 수정주가라 등락률 기준과 다르다.
+    previous = prev_close if prev_close is not None else previous_close(entries)
     change, rate = change_against(reference, previous)
     if change is None:
         return info
@@ -322,6 +330,33 @@ def orderbook(token, symbol):
 def price_limits(token, symbol):
     """상한가/하한가."""
     return client.get("/api/v1/price-limits", token, params={"symbol": symbol}) or {}
+
+
+def base_from_limits(limits):
+    """상하한가에서 기준가를 역산한다. 구할 수 없으면 None.
+
+    국내 가격제한폭은 기준가 ±30% 라 두 값의 평균이 곧 기준가다. 상한은 호가단위
+    내림, 하한은 올림이라 오차가 서로 상쇄돼 반올림 오차는 호가단위의 절반을
+    넘지 않는다(160만원대 종목에서 500원, 0.03%).
+
+    기준가는 거래소가 등락률을 계산하는 기준이고 토스 앱이 보여주는 값도 이것이다.
+    일봉의 종가는 adjusted 기본값 때문에 배당·분할이 보정된 수정주가라 기준가와
+    어긋난다. 실제로 SK하이닉스에서 1.3% 차이가 났다.
+
+    정리매매·신규상장처럼 제한폭이 없는 종목과 해외 종목은 null 이 와서 None 이
+    된다. 그때는 호출부가 캔들로 떨어진다.
+    """
+    upper = fmt.to_decimal((limits or {}).get("upperLimitPrice"))
+    lower = fmt.to_decimal((limits or {}).get("lowerLimitPrice"))
+    if upper is None or lower is None:
+        return None
+    base = fmt.round_won((upper + lower) / 2)
+    return str(base) if base is not None else None
+
+
+def base_price(token, symbol):
+    """기준가(= 전일 종가). 구할 수 없으면 None."""
+    return base_from_limits(price_limits(token, symbol))
 
 
 def symbol_info(token, symbols):

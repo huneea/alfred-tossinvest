@@ -125,6 +125,31 @@ Account 가 아니라 **ORDER_INFO** rate limit 그룹(6 req/s, 09:00–09:10 KS
 
 베이스: `https://openapi.tossinvest.com/openapi-docs/latest/`
 
+## 등락률을 구하는 방법
+
+전일 종가·기준가·등락률을 **직접 주는 엔드포인트가 없다.** `MarketDataApi.md` 가
+명시한다. `PriceResponse` 는 `lastPrice` 뿐이고 `StockInfo` 는 가격이 없다.
+`/api/v1/rankings` 만 `price.basePrice` 와 `price.changeRate` 를 주지만 임의 종목을
+지정할 수 없어 관심종목 조회에는 못 쓴다.
+
+그래서 기준가를 `/api/v1/price-limits` 에서 역산한다.
+
+```
+기준가 = (upperLimitPrice + lowerLimitPrice) / 2      국내 제한폭 ±30%
+등락률 = (lastPrice - 기준가) / 기준가 × 100
+```
+
+검산 (SK하이닉스, 실측):
+
+```
+1,593,000 × 1.3 = 2,070,900 → 호가단위 내림 = 2,070,000  (응답과 일치)
+1,593,000 × 0.7 = 1,115,100 → 올림          = 1,116,000  (응답과 일치)
+```
+
+**캔들 종가를 쓰면 안 된다.** `adjusted` 기본값이 true 라 수정주가가 온다. 같은
+종목에서 캔들 1,572,000 vs 기준가 1,593,000 으로 1.3% 차이가 났고, 등락률이
+3.88% 로 나와 앱의 2.6% 와 어긋났다.
+
 ## 오류
 
 일반 엔드포인트:

@@ -6,7 +6,7 @@ Decimal 로 다룬 뒤 문자열로 되돌린다.
 
 from __future__ import annotations
 
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 CURRENCY_SYMBOL = {"KRW": "₩", "USD": "$"}
 
@@ -68,6 +68,14 @@ def signed_money(value, currency="KRW"):
         return "-"
     sign = "+" if amount > 0 else ("-" if amount < 0 else "")
     return "{0}{1}".format(sign, money(abs(amount), currency))
+
+
+def round_won(value):
+    """원 단위로 반올림한 Decimal. 계산으로 만든 금액을 표시·비교용으로 다듬는다."""
+    amount = to_decimal(value)
+    if amount is None:
+        return None
+    return amount.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
 
 def signed_ratio(value):

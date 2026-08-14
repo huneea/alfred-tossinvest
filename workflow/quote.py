@@ -70,8 +70,18 @@ def _detail(token, entry):
 
     quote = api.prices(token, [symbol]).get(symbol) or {}
     currency = quote.get("currency") or "KRW"
+
+    # 제한폭을 먼저 받아 기준가를 구한다. 등락률 계산과 아래 제한폭 표시가 같은
+    # 응답을 쓰므로 호출은 한 번이다. 기준가를 못 구하면 daily_change 가 캔들로
+    # 떨어진다.
+    try:
+        limits = api.price_limits(token, symbol)
+    except Exception:
+        limits = {}
+    base = api.base_from_limits(limits)
+
     # 등락은 아래 headline 에 찍는 현재가와 같은 값을 기준으로 계산한다.
-    change = api.daily_change(token, symbol, quote.get("lastPrice")) or {}
+    change = api.daily_change(token, symbol, quote.get("lastPrice"), base) or {}
     saved = set(store.watchlist())
     mods = alfred.toggle_mod(symbol, symbol in saved)
 
@@ -141,18 +151,17 @@ def _detail(token, entry):
             icons.WARN,
         ))
 
-    try:
-        limits = api.price_limits(token, symbol)
+    upper = limits.get("upperLimitPrice")
+    lower = limits.get("lowerLimitPrice")
+    if upper is not None or lower is not None:
+        detail = "가격 제한폭"
+        if base is not None:
+            detail += " · 기준가 {0}".format(fmt.money(base, currency))
         items.append(row(
-            "상한 {0} · 하한 {1}".format(
-                fmt.money(limits.get("upperLimitPrice"), currency),
-                fmt.money(limits.get("lowerLimitPrice"), currency),
-            ),
-            "가격 제한폭",
+            "상한 {0} · 하한 {1}".format(fmt.money(upper, currency), fmt.money(lower, currency)),
+            detail,
             icons.LIMIT,
         ))
-    except Exception:
-        pass
 
     alfred.live(items)
 
