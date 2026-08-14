@@ -51,6 +51,7 @@ workflow/                 # 이 디렉터리가 곧 Alfred 워크플로우 번�
     └── alfred.py         # Script Filter JSON 출력, run() 래퍼
 build/
 ├── info_plist.py         # info.plist 생성 (오브젝트·연결·UID 정본)
+├── icons.py              # workflow/icons/*.png 생성 (순수 파이썬)
 └── preserve_hotkey.py    # 동기화 시 사용자 지정 핫키 보존
 build.sh                  # 배포용 .alfredworkflow 번들
 sync.sh                   # 설치본에 즉시 반영 + Alfred 리로드
@@ -67,6 +68,20 @@ sync.sh                   # 설치본에 즉시 반영 + Alfred 리로드
 `config.cache_dir()` 은 지워져도 다시 만들 수 있는 것만 둔다 (토큰, 종목 마스터).
 관심종목·최근 조회처럼 사용자가 쌓은 데이터는 `config.data_dir()` 로 간다.
 Alfred 는 캐시 디렉터리를 임의로 비울 수 있다.
+
+## 아이콘
+
+`build/icons.py` 가 `workflow/icons/*.png` 를 생성한다. 외부 패키지도 Cocoa 도
+쓰지 않는다 — 시스템 파이썬에 PyObjC 가 없고, 이미지 라이브러리를 끌어오면
+'의존성 0' 전제가 깨진다. zlib 으로 PNG 를 직접 쓰고 도형은 스캔라인으로 칠한 뒤
+수퍼샘플링으로 계단을 없앤다.
+
+색은 국내 시장 관례를 따른다. **상승 빨강, 하락 파랑.** 뒤집지 말 것.
+
+아이콘은 반드시 `icons/` 하위에 둔다. 번들 최상위의 `*.png` 는 Alfred 가 사용자
+지정 아이콘(`icon.png`, `<오브젝트 uid>.png`)을 두는 자리이고, `sync.sh` 가 그걸
+보호하려고 최상위 png 를 동기화에서 제외한다. 최상위에 두면 설치본에 전달되지
+않는다.
 
 ## 설치본에 반영할 때
 

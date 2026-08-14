@@ -12,6 +12,9 @@ cd "$(dirname "$0")"
 NAME="Toss Invest"
 OUT="dist/${NAME}.alfredworkflow"
 
+echo "==> 아이콘 생성"
+/usr/bin/python3 build/icons.py
+
 echo "==> info.plist 생성"
 /usr/bin/python3 build/info_plist.py
 

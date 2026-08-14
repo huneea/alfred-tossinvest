@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import sys
 
+from . import icons
 from .errors import TossError
 
 
@@ -57,9 +58,9 @@ def output(items, rerun=None):
     sys.stdout.write("\n")
 
 
-def empty(title, subtitle=""):
+def empty(title, subtitle="", icon=icons.WARN):
     """결과가 없을 때 보여줄 선택 불가 항목."""
-    output([item(title, subtitle, valid=False)])
+    output([item(title, subtitle, valid=False, icon=icon)])
 
 
 def run(handler):
@@ -71,4 +72,4 @@ def run(handler):
     try:
         handler()
     except TossError as exc:
-        output([item(exc.title, exc.subtitle, valid=False)])
+        output([item(exc.title, exc.subtitle, valid=False, icon=icons.WARN)])

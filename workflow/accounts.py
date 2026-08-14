@@ -7,7 +7,7 @@ TOSS_ACCOUNT_SEQ 에 넣을 accountSeq 를 확인하는 용도로도 쓴다. 엔
 
 from __future__ import annotations
 
-from tossinvest import alfred, api, auth, fmt
+from tossinvest import alfred, api, auth, fmt, icons
 from tossinvest.errors import TossError
 
 # BuyingPowerResponse 는 currency 와 cashBuyingPower 두 필드다. 응답이 바뀌어도
@@ -89,6 +89,7 @@ def main():
                 arg=seq,
                 uid=seq,
                 copy=seq,
+                icon=icons.ACCOUNT,
             )
         )
 

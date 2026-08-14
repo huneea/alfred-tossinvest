@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sys
 
-from tossinvest import alfred, api, auth, fmt, store, text, view
+from tossinvest import alfred, api, auth, fmt, icons, store, text, view
 
 
 def _overview_item(overview):
@@ -31,6 +31,7 @@ def _overview_item(overview):
         title="총 평가금액  {0}".format(fmt.price(market_value.get("amount"))),
         subtitle=subtitle,
         valid=False,
+        icon=icons.for_change(profit_loss.get("rate")) or icons.INFO,
     )
 
 
@@ -62,6 +63,7 @@ def _position_item(position, saved):
         arg=view.stock_url(symbol),
         uid=symbol,
         copy=symbol,
+        icon=icons.for_change(profit_loss.get("rate")),
         mods=alfred.toggle_mod(symbol, symbol in saved),
     )
 

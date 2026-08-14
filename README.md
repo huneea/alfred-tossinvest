@@ -59,6 +59,14 @@ Alfred 에서 Hotkey 오브젝트를 더블클릭해 직접 지정하세요. 지
 `tsq` 도 종목이 확정되기 전에는 상세를 부르지 않습니다. 티커나 종목명이 정확히
 일치할 때만 상세로 넘어가고, 그전에는 현재가만 붙인 후보 목록을 보여줍니다.
 
+### 아이콘
+
+결과 항목에 아이콘이 붙습니다. 상승 빨강 ▲, 하락 파랑 ▼, 보합 회색, 관심종목 ★,
+호가 매도/매수, 계좌, 안내·오류 등입니다.
+
+`build/icons.py` 가 생성하며 외부 패키지를 쓰지 않습니다. 색이나 모양을 바꾸려면
+그 파일의 `ICONS` 를 고치고 다시 빌드하세요.
+
 ## 사전 준비
 
 1. 토스증권 WTS > **설정 > Open API** 에서 앱을 등록하고 `client_id`,
@@ -99,12 +107,13 @@ curl -s https://api.ipify.org
 `dist/Toss Invest.alfredworkflow` 가 만들어집니다. **더블클릭하면 설치됩니다.**
 
 `.alfredworkflow` 는 `info.plist` 가 최상위에 있는 폴더를 zip 으로 압축하고
-확장자만 바꾼 것입니다. `build.sh` 가 하는 일은 네 단계입니다.
+확장자만 바꾼 것입니다. `build.sh` 가 하는 일은 다섯 단계입니다.
 
-1. `build/info_plist.py` 로 `workflow/info.plist` 생성
-2. `plutil -lint` 로 plist 검증
-3. `compileall` 로 파이썬 문법 검증
-4. `workflow/` 의 **내용물**을 zip (디렉터리째 압축하면 Alfred 가 `info.plist`
+1. `build/icons.py` 로 `workflow/icons/*.png` 생성
+2. `build/info_plist.py` 로 `workflow/info.plist` 생성
+3. `plutil -lint` 로 plist 검증
+4. `compileall` 로 파이썬 문법 검증
+5. `workflow/` 의 **내용물**을 zip (디렉터리째 압축하면 Alfred 가 `info.plist`
    를 못 찾습니다)
 
 `info.plist` 는 손으로 쓰지 않고 `build/info_plist.py` 에서 생성합니다. 오브젝트

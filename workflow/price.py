@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import sys
 
-from tossinvest import alfred, api, auth, store, view
+from tossinvest import alfred, api, auth, icons, store, view
 
 
 def _search(token, query):
@@ -42,6 +42,9 @@ def _search(token, query):
                 arg=view.stock_url(symbol),
                 uid=symbol,
                 copy=symbol,
+                # 검색 결과에는 등락을 붙이지 않으므로(종목당 호출이 든다)
+                # 관심종목 여부만 아이콘으로 표시한다.
+                icon=icons.STAR if symbol in saved else None,
                 mods=alfred.toggle_mod(symbol, symbol in saved),
             )
         )

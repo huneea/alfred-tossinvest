@@ -6,7 +6,7 @@ tsp(관심종목/최근 조회)와 tsw(관심종목 전용)가 같은 모양의 
 
 from __future__ import annotations
 
-from . import alfred, api, fmt, store
+from . import alfred, api, fmt, icons, store
 
 STOCK_URL = "https://tossinvest.com/stocks/{0}"
 
@@ -56,6 +56,8 @@ def listing(token, symbols, heading):
                 arg=stock_url(symbol),
                 uid=symbol,
                 copy=symbol,
+                # 등락을 못 구한 종목은 관심종목 표시로 대신한다.
+                icon=icons.for_change(rate) or (icons.STAR if symbol in saved else None),
                 mods=alfred.toggle_mod(symbol, symbol in saved),
             )
         )

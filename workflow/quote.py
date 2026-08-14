@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import sys
 
-from tossinvest import alfred, api, auth, fmt, store, text
+from tossinvest import alfred, api, auth, fmt, icons, store, text
 
 STOCK_URL = "https://tossinvest.com/stocks/{0}"
 
@@ -56,6 +56,7 @@ def _candidates(token, matches):
                 arg=STOCK_URL.format(symbol),
                 uid=symbol,
                 copy=symbol,
+                icon=icons.STAR if symbol in saved else None,
                 mods=alfred.toggle_mod(symbol, symbol in saved),
             )
         )
@@ -74,8 +75,8 @@ def _detail(token, entry):
     saved = set(store.watchlist())
     mods = alfred.toggle_mod(symbol, symbol in saved)
 
-    def row(title, subtitle):
-        return alfred.item(title, subtitle, arg=url, copy=symbol, mods=mods)
+    def row(title, subtitle, icon=icons.INFO):
+        return alfred.item(title, subtitle, arg=url, copy=symbol, mods=mods, icon=icon)
 
     rate = change.get("changeRate")
     headline = fmt.money(quote.get("lastPrice"), currency)
@@ -85,7 +86,11 @@ def _detail(token, entry):
         )
 
     items = [
-        row(headline, "{0} · {1} · ↩ 토스증권에서 열기".format(name, symbol)),
+        row(
+            headline,
+            "{0} · {1} · ↩ 토스증권에서 열기".format(name, symbol),
+            icons.for_change(rate) or icons.INFO,
+        ),
         row(
             "시 {0} · 고 {1} · 저 {2}".format(
                 fmt.money(change.get("open"), currency),
@@ -105,18 +110,34 @@ def _detail(token, entry):
         book = api.orderbook(token, symbol)
         asks = list(reversed(book["asks"][:ORDERBOOK_LEVELS]))
         bids = book["bids"][:ORDERBOOK_LEVELS]
-        for level in asks:
+        # 최우선 호가에서만 바로 체결된다. 뒤 단계는 주문 수량이 클 때 닿는
+        # 가격이므로 "지금 사면/팔면" 안내를 붙이지 않는다.
+        # asks 는 스프레드에 붙도록 뒤집어 그리므로 마지막 줄이 최우선이다.
+        for index, level in enumerate(asks):
+            best = index == len(asks) - 1
             items.append(row(
                 "매도 {0}".format(fmt.money(level.get("price"), currency)),
-                "잔량 {0}".format(fmt.number(level.get("volume"))),
+                "잔량 {0}{1}".format(
+                    fmt.number(level.get("volume")),
+                    " · 지금 사면 이 가격" if best else "",
+                ),
+                icons.ASK,
             ))
-        for level in bids:
+        for index, level in enumerate(bids):
             items.append(row(
                 "매수 {0}".format(fmt.money(level.get("price"), currency)),
-                "잔량 {0}".format(fmt.number(level.get("volume"))),
+                "잔량 {0}{1}".format(
+                    fmt.number(level.get("volume")),
+                    " · 지금 팔면 이 가격" if index == 0 else "",
+                ),
+                icons.BID,
             ))
     except Exception:
-        items.append(row("호가 조회 실패", "장 시간이 아니거나 호가를 제공하지 않는 종목입니다"))
+        items.append(row(
+            "호가 조회 실패",
+            "장 시간이 아니거나 호가를 제공하지 않는 종목입니다",
+            icons.WARN,
+        ))
 
     try:
         limits = api.price_limits(token, symbol)
