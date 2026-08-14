@@ -183,6 +183,29 @@ GET /api/v1/rankings?type=MARKET_TRADING_AMOUNT&marketCountry=KR&duration=realti
 `TOP_LOSERS`, `TOSS_SECURITIES_TRADING_AMOUNT`, `TOSS_SECURITIES_TRADING_VOLUME`.
 `TOP_GAINERS`/`TOP_LOSERS` 는 `basePrice` 가 duration 시작 시점 기준가다.
 
+## 랭킹
+
+```
+GET /api/v1/rankings?type=...&marketCountry=KR&duration=realtime&count=30
+```
+
+`RankingType`: `MARKET_TRADING_AMOUNT`, `MARKET_TRADING_VOLUME`, `TOP_GAINERS`,
+`TOP_LOSERS`, `TOSS_SECURITIES_TRADING_AMOUNT`, `TOSS_SECURITIES_TRADING_VOLUME`.
+`duration`: `realtime`, `1d`, `1w`, `1mo`, `3mo`, `6mo`, `1y`.
+
+응답은 `result: {rankedAt, rankings: [RankingItem]}` 다. 목록이 아니라 객체다.
+
+```
+RankingItem = { rank, symbol, currency, tradingVolume, tradingAmount, price }
+RankingPrice = { lastPrice, basePrice, changeRate }
+```
+
+**등락률을 직접 주는 유일한 엔드포인트다.** `changeRate` 는 소수비율이고 정의는
+`(lastPrice - basePrice) / basePrice` 다. `TOP_GAINERS`/`TOP_LOSERS` 는 `basePrice`
+가 duration 시작 시점 기준가이고, 나머지 타입은 항상 전일 기준가다.
+
+`TOSS_SECURITIES_*` 는 토스증권 체결 기준 집계이고 나머지는 시장 전체 기준이다.
+
 ## 지수 (코스피·코스닥)
 
 | 기능 | 엔드포인트 | 파라미터 |

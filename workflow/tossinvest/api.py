@@ -283,6 +283,43 @@ def prev_closes(token, symbols):
     return {symbol: known.get(symbol) or {} for symbol in symbols}
 
 
+# 랭킹. basePrice·changeRate 를 직접 주는 유일한 엔드포인트다.
+# TOP_GAINERS/TOP_LOSERS 는 basePrice 가 duration 시작 시점 기준가이고, 나머지는
+# 항상 전일 기준가다.
+RANKING_TYPES = {
+    "MARKET_TRADING_AMOUNT": "거래대금 상위",
+    "MARKET_TRADING_VOLUME": "거래량 상위",
+    "TOP_GAINERS": "급등",
+    "TOP_LOSERS": "급락",
+    "TOSS_SECURITIES_TRADING_AMOUNT": "토스 거래대금 상위",
+    "TOSS_SECURITIES_TRADING_VOLUME": "토스 거래량 상위",
+}
+RANKING_COUNT = 30
+
+
+def rankings(token, ranking_type, market_country="KR", duration="realtime",
+             count=RANKING_COUNT):
+    """(집계 시각, 랭킹 목록) 을 돌려준다.
+
+    응답은 {"rankings": [...], "rankedAt": ...} 이고 항목마다 price 에
+    lastPrice·basePrice·changeRate 가 들어 있다. 등락률을 우리가 계산할 필요가
+    없는 유일한 화면이다.
+    """
+    result = client.get(
+        "/api/v1/rankings",
+        token,
+        params={
+            "type": ranking_type,
+            "marketCountry": market_country,
+            "duration": duration,
+            "count": count,
+        },
+    )
+    if not isinstance(result, dict):
+        return None, []
+    return result.get("rankedAt"), result.get("rankings") or []
+
+
 # 시장 지표 심볼. 문서의 심볼 카탈로그 중 이 워크플로우가 쓰는 것만 둔다.
 INDEX_SYMBOLS = ("KOSPI", "KOSDAQ")
 

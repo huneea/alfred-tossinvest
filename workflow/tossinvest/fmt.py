@@ -90,6 +90,20 @@ def signed_ratio(value):
     return signed_rate(ratio * 100)
 
 
+def korean_amount(value):
+    """큰 금액을 조·억 단위로 줄인다. 거래대금처럼 자릿수가 큰 값에 쓴다."""
+    amount = to_decimal(value)
+    if amount is None:
+        return "-"
+    sign = "-" if amount < 0 else ""
+    amount = abs(amount)
+    if amount >= 10 ** 12:
+        return "{0}{1}조".format(sign, number(amount / 10 ** 12, 1))
+    if amount >= 10 ** 8:
+        return "{0}{1}억".format(sign, number(amount / 10 ** 8, 0))
+    return sign + number(amount)
+
+
 def price(value):
     """Price 모델({"krw": ..., "usd": ...})을 문자열로.
 
