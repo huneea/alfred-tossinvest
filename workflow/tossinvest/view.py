@@ -6,19 +6,46 @@ tsp(관심종목/최근 조회)와 tsw(관심종목 전용)가 같은 모양의 
 
 from __future__ import annotations
 
-from . import alfred, api, fmt, icons, store
+from . import alfred, api, config, fmt, icons, store
 
 STOCK_URL = "https://tossinvest.com/stocks/{0}"
+
+# 관심종목 표시. 아이콘을 로고로 쓰면 별 아이콘이 설 자리가 없어져서 이름 앞으로
+# 옮긴 것이다.
+WATCH_MARK = "⭐"
 
 
 def stock_url(symbol):
     return STOCK_URL.format(symbol)
 
 
-def price_text(quote):
+def stock_name(name, symbol, saved):
+    """목록에 보여줄 종목명. 관심종목이면 앞에 별을 단다.
+
+    로고가 켜져 있을 때만 붙인다. 꺼져 있으면 아이콘이 이미 별이라 같은 사실을
+    한 행에서 두 번 알리게 된다.
+    """
+    if symbol in saved and config.logos_enabled():
+        return "{0} {1}".format(WATCH_MARK, name)
+    return name
+
+
+def price_text(quote, fx=None):
     if not quote:
         return "시세 없음"
-    return fmt.money(quote.get("lastPrice"), quote.get("currency") or "KRW")
+    return fmt.money_with_krw(
+        quote.get("lastPrice"), quote.get("currency") or "KRW", fx)
+
+
+def usd_rate(token, quotes):
+    """화면에 달러 종목이 있을 때만 환율을 구한다.
+
+    국내 종목만 있는 화면에서 환율을 부르면 아무 데도 쓰이지 않는 호출이 자동
+    갱신마다 나간다.
+    """
+    if not any((q or {}).get("currency") == "USD" for q in quotes.values()):
+        return None
+    return api.usd_krw(token)
 
 
 def change_rates(token, symbols, quotes):
@@ -46,14 +73,14 @@ def change_rates(token, symbols, quotes):
     return result
 
 
-def stock_item(symbol, name, quote, rates, market, saved):
+def stock_item(symbol, name, quote, rates, market, saved, fx=None):
     """종목 한 건을 항목으로. 목록과 검색 결과가 같은 모양을 쓴다.
 
     부제에는 행마다 달라지는 값만 넣는다. 모든 행에 같은 문구를 반복하면 자리만
     차지하고 알려주는 것이 없다.
     """
     rates = rates or {}
-    title = "{0}  {1}".format(name, price_text(quote))
+    title = "{0}  {1}".format(stock_name(name, symbol, saved), price_text(quote, fx))
     if rates.get("rate") is not None:
         title += "  {0}".format(fmt.colored_rate(rates["rate"]))
 
@@ -81,6 +108,7 @@ def listing(token, symbols):
     rates = change_rates(token, symbols, quotes)
     info = api.symbol_info(token, symbols)
     saved = set(store.watchlist())
+    fx = usd_rate(token, quotes)
 
     return [
         stock_item(
@@ -90,6 +118,7 @@ def listing(token, symbols):
             rates.get(symbol),
             (info.get(symbol) or {}).get("market") or "",
             saved,
+            fx,
         )
         for symbol in symbols
     ]

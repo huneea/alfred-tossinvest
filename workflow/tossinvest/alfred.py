@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import sys
 
-from . import config, icons
+from . import config, icons, jobs
 from .errors import TossError
 
 
@@ -78,6 +78,12 @@ def output(items, rerun=None):
         payload["rerun"] = rerun
     json.dump(payload, sys.stdout, ensure_ascii=False)
     sys.stdout.write("\n")
+    sys.stdout.flush()
+
+    # 로고·종목 마스터처럼 오래 걸리는 준비 작업은 결과를 다 내보낸 **뒤에**
+    # 돌린다. 순서가 뒤집히면 그것이 끝날 때까지 목록이 뜨지 않는다. 준비된
+    # 결과는 다음 자동 갱신에 반영된다.
+    jobs.run_pending()
 
 
 def live(items):

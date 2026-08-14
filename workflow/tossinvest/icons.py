@@ -9,6 +9,8 @@ Alfred 는 항목의 icon.path 를 워크플로우 디렉터리 기준 상대 �
 
 from __future__ import annotations
 
+from . import logos
+
 STOCK = "icons/stock.png"          # 종목
 STAR = "icons/star.png"            # 관심종목
 CANDLE = "icons/candle.png"        # 시가·고가·저가
@@ -23,5 +25,12 @@ WARN = "icons/warn.png"            # 안내·오류
 
 
 def for_stock(symbol, saved):
-    """종목 행의 아이콘. 관심종목이면 별로 구분한다."""
-    return STAR if symbol in saved else STOCK
+    """종목 행의 아이콘.
+
+    업체 로고가 캐시에 있으면 그것을 쓴다. 로고를 쓰면 관심종목 여부를 별로
+    알리던 신호가 사라지지만, 목록에서 종목을 골라내는 속도는 로고 쪽이 훨씬
+    빠르다. 관심종목 여부는 부제의 `⌘↩ 관심종목 추가/제거` 문구에 남아 있다.
+
+    로고가 아직 안 받아졌거나 없는 종목이면 기존 아이콘으로 떨어진다.
+    """
+    return logos.path(symbol) or (STAR if symbol in saved else STOCK)

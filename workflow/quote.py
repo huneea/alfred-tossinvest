@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import sys
 
-from tossinvest import alfred, api, auth, fmt, icons, store, text
+from tossinvest import alfred, api, auth, fmt, icons, store, text, view
 
 STOCK_URL = "https://tossinvest.com/stocks/{0}"
 
@@ -42,6 +42,7 @@ def _exact_match(matches, query):
 def _candidates(token, matches):
     quotes = api.prices(token, [e.get("symbol") for e in matches])
     saved = set(store.watchlist())
+    fx = view.usd_rate(token, quotes)
 
     items = []
     for entry in matches:
@@ -50,8 +51,9 @@ def _candidates(token, matches):
         items.append(
             alfred.item(
                 title="{0}  {1}".format(
-                    entry.get("name") or symbol,
-                    fmt.money(quote.get("lastPrice"), quote.get("currency") or "KRW"),
+                    view.stock_name(entry.get("name") or symbol, symbol, saved),
+                    fmt.money_with_krw(
+                        quote.get("lastPrice"), quote.get("currency") or "KRW", fx),
                 ),
                 subtitle="{0} · 종목명을 끝까지 입력하면 상세 시세를 봅니다".format(symbol),
                 arg=STOCK_URL.format(symbol),
@@ -90,8 +92,10 @@ def _detail(token, entry):
     def row(title, subtitle, icon=icons.STOCK):
         return alfred.item(title, subtitle, arg=url, copy=symbol, mods=mods, icon=icon)
 
+    fx = api.usd_krw(token) if currency == "USD" else None
+
     rate = change.get("changeRate")
-    headline = fmt.money(quote.get("lastPrice"), currency)
+    headline = fmt.money_with_krw(quote.get("lastPrice"), currency, fx)
     if rate is not None:
         headline += "   {0}  ({1})".format(
             fmt.colored_rate(rate), fmt.signed_money(change.get("change"), currency)
@@ -110,7 +114,8 @@ def _detail(token, entry):
     items = [
         row(
             headline,
-            " · ".join(part for part in (name, symbol, regular, "↩ 열기") if part),
+            " · ".join(part for part in (
+                view.stock_name(name, symbol, saved), symbol, regular, "↩ 열기") if part),
             icons.for_stock(symbol, saved),
         ),
         # 시고저와 거래량은 같은 일봉에서 나온 값이라 한 행으로 묶는다. Alfred 가

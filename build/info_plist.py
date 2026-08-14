@@ -380,12 +380,32 @@ def build():
                                "0 이면 끕니다. 1~5 초까지 지정할 수 있습니다",
                 "config": {"default": "2", "placeholder": "2", "required": False, "trim": True},
             },
+            {
+                "type": "checkbox",
+                "variable": "TOSS_LOGOS",
+                "label": "종목 로고",
+                "description": "종목 행 아이콘을 업체 로고로 표시합니다. 처음 보는 종목은 "
+                               "로고를 받아오는 동안 기본 아이콘으로 보였다가 채워집니다. "
+                               "끄면 관심종목 별 아이콘으로 돌아갑니다",
+                "config": {"default": True, "required": False, "text": "표시"},
+            },
+            {
+                "type": "checkbox",
+                "variable": "TOSS_US_STOCKS",
+                "label": "미국 종목",
+                "description": "NASDAQ·NYSE 종목을 검색에 포함합니다. 한글 종목명으로도 "
+                               "찾을 수 있습니다(애플, 엔비디아). 종목 목록은 처음 한 번 "
+                               "백그라운드로 받아둡니다",
+                "config": {"default": True, "required": False, "text": "검색에 포함"},
+            },
         ],
         "variables": {
             "TOSS_CLIENT_ID": "",
             "TOSS_CLIENT_SECRET": "",
             "TOSS_ACCOUNT_SEQ": "",
             "TOSS_REFRESH_SECONDS": "2",
+            "TOSS_LOGOS": "1",
+            "TOSS_US_STOCKS": "1",
         },
         # 워크플로우를 .alfredworkflow 로 내보낼 때 이 값들을 빼고 내보낸다.
         # 자격증명이 배포 파일에 박혀 나가는 사고를 막는다.

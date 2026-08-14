@@ -55,7 +55,7 @@ def _position_item(position, saved):
 
     return alfred.item(
         title="{0}  {1}  {2}".format(
-            name,
+            view.stock_name(name, symbol, saved),
             fmt.money(market_value.get("amount"), currency),
             fmt.colored_ratio(profit_loss.get("rate")),
         ),

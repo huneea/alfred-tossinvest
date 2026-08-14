@@ -27,6 +27,7 @@ def _search(token, query):
     # 키 입력마다 종목별 호출이 나가지는 않는다.
     rates = view.change_rates(token, symbols, quotes)
     saved = set(store.watchlist())
+    fx = view.usd_rate(token, quotes)
 
     alfred.live([
         view.stock_item(
@@ -36,6 +37,7 @@ def _search(token, query):
             rates.get(entry.get("symbol")),
             entry.get("market") or "",
             saved,
+            fx,
         )
         for entry in matches
     ])

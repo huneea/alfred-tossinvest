@@ -20,6 +20,8 @@ ENV_CLIENT_ID = "TOSS_CLIENT_ID"
 ENV_CLIENT_SECRET = "TOSS_CLIENT_SECRET"
 ENV_ACCOUNT_SEQ = "TOSS_ACCOUNT_SEQ"
 ENV_REFRESH = "TOSS_REFRESH_SECONDS"
+ENV_LOGOS = "TOSS_LOGOS"
+ENV_US_STOCKS = "TOSS_US_STOCKS"
 
 # Alfred 가 rerun 으로 받아주는 범위는 0.1~5.0 초다. 그보다 자주 돌면 값을 받아
 # 그리기도 전에 다시 실행되고 rate limit 만 축낸다.
@@ -68,6 +70,24 @@ def refresh_seconds():
     if value <= 0:
         return None
     return min(REFRESH_MAX, max(REFRESH_MIN, value))
+
+
+def _flag(name):
+    """Alfred checkbox 변수. 체크 해제는 "0" 으로 온다."""
+    return os.environ.get(name, "").strip().lower() not in ("0", "false", "no", "off")
+
+
+def us_stocks_enabled():
+    """검색에 미국 종목(NASDAQ·NYSE)을 포함할지. 기본은 켬."""
+    return _flag(ENV_US_STOCKS)
+
+
+def logos_enabled():
+    """종목 행에 업체 로고를 쓸지 여부. 기본은 켬.
+
+    사용자가 끄면 관심종목 별 아이콘이 돌아온다.
+    """
+    return _flag(ENV_LOGOS)
 
 
 def cache_dir():

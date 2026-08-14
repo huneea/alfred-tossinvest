@@ -72,7 +72,7 @@ def main():
             alfred.item(
                 title="{0}. {1}  {2}  {3}".format(
                     entry.get("rank"),
-                    name,
+                    view.stock_name(name, symbol, saved),
                     fmt.money(price.get("lastPrice"), currency),
                     fmt.colored_ratio(price.get("changeRate")),
                 ),

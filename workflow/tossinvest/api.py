@@ -10,13 +10,31 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from . import client, config, fmt, text
+from . import client, config, fmt, jobs, text
 from .errors import ApiError, TossError
 
 # 종목 마스터는 하루 한 번만 받으면 충분하다. Script Filter 는 타이핑마다
 # 실행되므로 매번 전종목을 내려받으면 rate limit 과 지연 둘 다 문제가 된다.
 MASTER_TTL = 24 * 60 * 60
-DEFAULT_MARKETS = ("KOSPI", "KOSDAQ")
+
+# `market` 허용값 중 이 워크플로우가 쓰는 것. AMEX·US_ETC 는 대부분 ETF·워런트라
+# 검색을 어수선하게 만들어 뺐다.
+KR_MARKETS = ("KOSPI", "KOSDAQ")
+US_MARKETS = ("NASDAQ", "NYSE")
+DEFAULT_MARKETS = KR_MARKETS + US_MARKETS
+
+# `/api/v1/stocks/all` 의 rate limit 은 **초당 1회**다(응답의 X-RateLimit-Limit 이
+# 1). 문서의 rate limit 표에는 이 그룹이 아예 없어서 실측으로 확인했다. 시장을
+# 연달아 받으면 두 번째부터 429 가 나고, 그러면 그날 검색이 통째로 빈다.
+MASTER_MIN_INTERVAL = 1.2
+MASTER_RETRY_WAIT = 2.0
+
+# 마스터 한 시장을 받는 데 걸리는 시간(0.5초 안팎)에 간격까지 더한 여유값.
+MASTER_CLAIM_TTL = 180
+
+MASTER_FETCHER = "fetch_master.py"
+
+_last_master_call = 0.0
 
 # GET /api/v1/prices 의 symbols 파라미터 상한.
 MAX_SYMBOLS_PER_CALL = 200
@@ -487,6 +505,52 @@ def orderbook(token, symbol):
     }
 
 
+FX_FILE = "exchange-rate.json"
+
+# 표시 환율은 1분마다 갱신된다(문서 명시, 응답의 validFrom~validUntil 도 약 1분).
+# 자동 갱신이 2초라 캐싱하지 않으면 화면 하나에 분당 30회가 나간다.
+FX_TTL = 60
+
+
+def usd_krw(token):
+    """1 USD 가 몇 원인지. 구하지 못하면 None.
+
+    `rate` 는 매수 환율이라 스프레드가 섞여 있다. 화면에 참고로 덧붙이는 값이므로
+    중립적인 `midRate`(매매기준율)를 쓴다. 문서도 이 엔드포인트를 "참고용 표시
+    환율" 이라고 못박는다 — 실제 주문 체결 환율과는 다르다.
+
+    환율을 못 받았다고 시세 목록 전체를 오류로 덮지는 않는다. 원화 환산은 곁들이는
+    정보라 없으면 달러 표기만 남으면 된다.
+    """
+    path = os.path.join(config.cache_dir(), FX_FILE)
+    try:
+        if time.time() - os.path.getmtime(path) < FX_TTL:
+            with open(path, "r", encoding="utf-8") as handle:
+                return fmt.to_decimal(json.load(handle).get("rate"))
+    except (IOError, OSError, ValueError):
+        pass
+
+    try:
+        result = client.get(
+            "/api/v1/exchange-rate",
+            token,
+            params={"baseCurrency": "USD", "quoteCurrency": "KRW"},
+        ) or {}
+    except TossError:
+        return None
+
+    rate = fmt.to_decimal(result.get("midRate") or result.get("rate"))
+    if rate is None:
+        return None
+
+    try:
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"rate": str(rate)}, handle)
+    except (IOError, OSError):
+        pass
+    return rate
+
+
 def price_limits(token, symbol):
     """상한가/하한가."""
     return client.get("/api/v1/price-limits", token, params={"symbol": symbol}) or {}
@@ -562,25 +626,79 @@ def _store_master_cache(market, entries):
         pass
 
 
-def stock_master(token, markets=DEFAULT_MARKETS):
-    """상장 종목 마스터를 합쳐서 반환. 시장별로 하루 단위 캐싱한다."""
-    entries = []
-    for market in markets:
-        cached = _load_master_cache(market)
-        if cached is None:
-            cached = client.get(
+def _master_claim_file(market):
+    return os.path.join(config.cache_dir(), "master-{0}.claim".format(market))
+
+
+def search_markets():
+    """검색 대상 시장. 미국 종목은 설정으로 끌 수 있다."""
+    return KR_MARKETS + (US_MARKETS if config.us_stocks_enabled() else ())
+
+
+def fetch_master(token, market):
+    """한 시장의 전종목을 받아 캐시에 넣는다. 초당 1회 제한을 지킨다.
+
+    이 함수를 부르는 쪽이 여러 시장을 도는 경우가 있어 간격을 여기서 지킨다.
+    호출부가 기억해야 하는 규칙을 만들면 언젠가는 빠뜨린다.
+    """
+    global _last_master_call
+
+    def call():
+        global _last_master_call
+        wait = MASTER_MIN_INTERVAL - (time.time() - _last_master_call)
+        if wait > 0:
+            time.sleep(wait)
+        try:
+            return client.get(
                 "/api/v1/stocks/all",
                 token,
                 params={"market": market, "status": "ACTIVE"},
             ) or []
-            _store_master_cache(market, cached)
+        finally:
+            _last_master_call = time.time()
+
+    try:
+        rows = call()
+    except ApiError as exc:
+        if exc.status != 429:
+            raise
+        # 간격을 지켰는데도 걸렸다면 다른 프로세스가 같은 한도를 쓰고 있다.
+        time.sleep(MASTER_RETRY_WAIT)
+        rows = call()
+
+    _store_master_cache(market, rows)
+    return rows
+
+
+def stock_master(token, markets=None):
+    """상장 종목 마스터를 합쳐서 반환. 시장별로 하루 단위 캐싱한다.
+
+    국내 시장은 없으면 그 자리에서 받는다. 검색의 알맹이라 비어 있으면 화면이
+    쓸모없어진다.
+
+    미국 시장은 백그라운드에 맡기고 이번 실행은 그냥 넘어간다. 초당 1회 제한
+    때문에 네 시장을 다 받으려면 몇 초가 걸리는데, 그동안 Alfred 결과창이 멈춰
+    있게 할 수는 없다. 준비되기 전까지는 국내 종목만 검색되고, 받아지면 다음
+    갱신부터 자연스럽게 합쳐진다.
+    """
+    wanted = search_markets() if markets is None else markets
+
+    entries = []
+    for market in wanted:
+        cached = _load_master_cache(market)
+        if cached is None:
+            if market in US_MARKETS:
+                jobs.queue(MASTER_FETCHER, market,
+                           _master_claim_file(market), MASTER_CLAIM_TTL)
+                continue
+            cached = fetch_master(token, market)
         for entry in cached:
             entry.setdefault("market", market)
         entries.extend(cached)
     return entries
 
 
-def search_stocks(token, query, limit=15, markets=DEFAULT_MARKETS):
+def search_stocks(token, query, limit=15, markets=None):
     """종목명 또는 티커로 마스터를 로컬 검색.
 
     매 키 입력마다 API 를 때리는 대신 캐싱된 마스터를 필터링한다. 티커 완전

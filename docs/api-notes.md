@@ -39,6 +39,30 @@ grant_type=client_credentials&client_id=...&client_secret=...
 
 `market` 허용값: `KOSPI`, `KOSDAQ`, `NYSE`, `NASDAQ`, `AMEX`, `KR_ETC`, `US_ETC`.
 
+시장별 종목 수(실측): KOSPI 2,474 · KOSDAQ 1,822 · NASDAQ 4,380 · NYSE 2,316 ·
+AMEX 3,762 · US_ETC 443. 이 워크플로우는 앞의 네 개만 쓴다 — AMEX·US_ETC 는
+대부분 ETF·워런트라 검색만 어수선해진다.
+
+## 미국 종목
+
+**종목명이 한글로 온다.** `애플`, `엔비디아`, `테슬라` 로 검색된다. 국내 종목과
+같은 마스터 구조라 검색 코드를 따로 둘 필요가 없다.
+
+| 항목 | 미국 종목에서 |
+| --- | --- |
+| `/api/v1/prices` | 정상. `currency: "USD"` |
+| `/api/v1/candles` | 정상 |
+| `/api/v1/price-limits` | 200 이지만 상·하한이 **둘 다 null** |
+| 호가 | 정상 |
+| 로고 CDN | 정상 (`icn-sec-fill-AAPL.png`) |
+
+가격제한폭이 없으니 기준가를 역산할 수 없다. `prev_closes()` 가 캔들 종가로
+떨어지는데, 미국은 넥스트레이드 같은 복수 거래소 문제가 없어서 **캔들 종가가 곧
+정확한 전일 종가다.** 국내에서 겪은 괴리가 여기서는 생기지 않는다.
+
+같은 이유로 `change_rates()` 의 `regular`(정규장 등락률)는 미국 종목에서 항상
+비어 있다. base 와 candle 이 같은 값이라 두 번 보여줄 것이 없다.
+
 ## 응답 껍데기
 
 인증 엔드포인트를 제외한 모든 응답은 `{"result": ...}` 로 감싸여 온다.
@@ -124,6 +148,38 @@ Account 가 아니라 **ORDER_INFO** rate limit 그룹(6 req/s, 09:00–09:10 KS
 - `…/api-reference/Models/<모델명>.md` — 응답 모델 필드
 
 베이스: `https://openapi.tossinvest.com/openapi-docs/latest/`
+
+## 환율
+
+```
+GET /api/v1/exchange-rate?baseCurrency=USD&quoteCurrency=KRW
+```
+
+`baseCurrency`·`quoteCurrency` 는 필수이고 `KRW`/`USD` 만 받는다. `dateTime` 을
+주면 그 시점 환율을 조회한다. Rate limit 그룹은 `MARKET_INFO`.
+
+```json
+{ "rate": "1413.7", "midRate": "1413.45", "basisPoint": "2",
+  "rateChangeType": "DOWN",
+  "validFrom": "...T15:06:57.000+09:00", "validUntil": "...T15:11:55.000+09:00" }
+```
+
+**`rate` 와 `midRate` 를 구분해야 한다.** `rate` 는 매수 환율로 스프레드가 섞여
+있고, `midRate` 가 매매기준율이다. 화면에 참고로 덧붙이는 원화 환산에는
+`midRate` 를 쓴다 — `api.usd_krw()` 가 그 값을 돌려준다.
+
+문서가 **참고용 표시 환율**이라고 못박는다. 실제 주문에 적용되는 거래 환율과
+다르므로 이 숫자로 체결 금액을 계산하지 않는다.
+
+갱신 주기는 1분이다(`validFrom`~`validUntil` 이 그 윈도). 자동 갱신이 2초라
+캐싱하지 않으면 화면 하나에 분당 30회가 나간다. `api.FX_TTL` 로 60초 캐싱하고,
+화면에 달러 종목이 있을 때만 부른다(`view.usd_rate()`).
+
+### 시장 지표 심볼은 열려 있지 않다
+
+환율을 `market-indicators/prices` 에서 찾으려 했지만 `USDKRW`·`SPX`·`DJI`·`VIX`
+전부 400 이다. 알 수 없는 심볼은 오류 본문도 없이 거부된다. 확인된 심볼은
+`KOSPI`, `KOSDAQ` 뿐이다. 환율은 위의 전용 엔드포인트를 쓴다.
 
 ## 등락률을 구하는 방법
 
@@ -279,8 +335,26 @@ OAuth 엔드포인트는 표준 형식이라 `error` 가 문자열이다:
 | ORDER | 10 req/s | 09:00–09:10 KST 동일 |
 | ORDER_INFO | 6 req/s | 09:00–09:10 KST 3 req/s 로 축소 |
 | MARKET_DATA_CHART | 20 req/s | |
+| `/api/v1/stocks/all` | **1 req/s** | 문서에 없음. 실측으로 확인 |
 
 응답 헤더에 `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `Retry-After`.
+
+### `/stocks/all` 은 초당 1회다
+
+문서의 rate limit 표에 이 그룹이 없어서 놓치기 쉽다. 응답 헤더가 사실을 말해준다.
+
+```
+X-RateLimit-Limit = 1
+X-RateLimit-Remaining = 0
+X-RateLimit-Reset = 1
+```
+
+시장을 연달아 받으면 두 번째부터 429 가 난다. 캐시가 살아 있는 동안에는 드러나지
+않다가 만료 직후에만 터지고, 그때 **검색 결과가 통째로 빈다.** 실제로 시장 6개를
+연속 호출했다가 3번째부터 전부 429 를 받았다.
+
+`api.fetch_master()` 가 호출 간격(`MASTER_MIN_INTERVAL`)을 지키고 429 를 한 번
+재시도한다. 이 함수를 거치지 않고 `/stocks/all` 을 직접 부르지 않는다.
 
 ## 환경
 

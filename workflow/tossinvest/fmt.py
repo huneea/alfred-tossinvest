@@ -52,9 +52,38 @@ def money(value, currency="KRW"):
     return "{0}{1}".format(CURRENCY_SYMBOL.get(currency, ""), number(value, places))
 
 
+def money_with_krw(value, currency="KRW", rate=None):
+    """외화 금액 옆에 원화 환산을 덧붙인다.
+
+    환율이 없으면 원래 표기만 돌려준다. 환산은 곁들이는 정보라 없다고 화면이
+    망가지면 안 된다. 원화 종목에는 애초에 붙일 것이 없다.
+    """
+    text = money(value, currency)
+    amount = to_decimal(value)
+    if currency == "KRW" or rate is None or amount is None:
+        return text
+    return "{0} ({1})".format(text, money(round_won(amount * rate), "KRW"))
+
+
+RATE_PLACES = Decimal("0.01")
+
+
+def _shown_rate(value):
+    """화면에 찍힐 자리수로 반올림한 등락률. 부호·색을 이 값으로 판단한다.
+
+    반올림 전 값으로 부호를 정하면 `+0.00%` 처럼 앞뒤가 안 맞는 표기가 나온다.
+    0.002% 는 오른 것이 맞지만 소수 둘째 자리까지만 보여주는 화면에서는 보합으로
+    읽히는 게 자연스럽다.
+    """
+    rate = to_decimal(value)
+    if rate is None:
+        return None
+    return rate.quantize(RATE_PLACES, rounding=ROUND_HALF_UP)
+
+
 def signed_rate(value):
     """등락률을 부호와 함께. 보합은 부호 없이 0.00% 로 둔다."""
-    rate = to_decimal(value)
+    rate = _shown_rate(value)
     if rate is None:
         return "-"
     sign = "+" if rate > 0 else ("-" if rate < 0 else "")
@@ -90,9 +119,14 @@ def signed_ratio(value):
     return signed_rate(ratio * 100)
 
 
-# 상승 빨강, 하락 파랑. 국내 시장 관례를 따른다.
-RATE_UP = "🔴"
-RATE_DOWN = "🔵"
+# 상승 난색, 하락 한색. 국내 시장 관례를 따른다.
+#
+# 소형 다이아몬드를 쓰는 이유는 크기다. 🔴/🔵 는 이름대로 large circle 이라
+# 글자 칸의 79% 를 잉크로 채워 목록에서 수치보다 이모지가 먼저 눈에 들어온다.
+# 🔸/🔹 는 30% 로 절반 이하다. 다만 유니코드에 "small red diamond" 가 없어
+# 상승은 빨강 대신 주황이 된다. 크기를 얻는 대가로 받아들인 타협이다.
+RATE_UP = "🔸"
+RATE_DOWN = "🔹"
 
 
 def colored_rate(value):
@@ -105,7 +139,7 @@ def colored_rate(value):
     눈으로 훑는 제목에만 쓴다. 부제까지 넣으면 이모지가 너무 많아진다.
     보합에는 붙이지 않는다.
     """
-    rate = to_decimal(value)
+    rate = _shown_rate(value)
     if rate is None:
         return "-"
     text = signed_rate(rate)
