@@ -49,9 +49,10 @@ workflow/                 # 이 디렉터리가 곧 Alfred 워크플로우 번�
     ├── text.py           # 비교용 문자열 정규화 (NFC)
     ├── fmt.py            # 금액/수익률 표시 포맷 (Decimal 기반)
     └── alfred.py         # Script Filter JSON 출력, run() 래퍼
+assets/icons/*.svg        # 아이콘 원본 (벡터). 여기를 고친다
 build/
 ├── info_plist.py         # info.plist 생성 (오브젝트·연결·UID 정본)
-├── icons.py              # workflow/icons/*.png 생성 (순수 파이썬)
+├── render_icons.js       # SVG -> PNG (macOS NSImage, JXA)
 └── preserve_hotkey.py    # 동기화 시 사용자 지정 핫키 보존
 build.sh                  # 배포용 .alfredworkflow 번들
 sync.sh                   # 설치본에 즉시 반영 + Alfred 리로드
@@ -71,12 +72,18 @@ Alfred 는 캐시 디렉터리를 임의로 비울 수 있다.
 
 ## 아이콘
 
-`build/icons.py` 가 `workflow/icons/*.png` 를 생성한다. 외부 패키지도 Cocoa 도
-쓰지 않는다 — 시스템 파이썬에 PyObjC 가 없고, 이미지 라이브러리를 끌어오면
-'의존성 0' 전제가 깨진다. zlib 으로 PNG 를 직접 쓰고 도형은 스캔라인으로 칠한 뒤
-수퍼샘플링으로 계단을 없앤다.
+원본은 `assets/icons/*.svg` 다. **SVG 를 직접 고친다.** PNG 는 산출물이라 손대지
+않는다. `build/render_icons.js` 가 macOS 의 NSImage 로 굽는다 — SVG 를 네이티브로
+읽으므로 설치할 것이 없고, 그라디언트·linecap·linejoin 과 안티에일리어싱을 Apple
+렌더러가 처리한다.
 
-색은 국내 시장 관례를 따른다. **상승 빨강, 하락 파랑.** 뒤집지 말 것.
+아이콘은 그 행이 **무엇인지** 알려주는 것으로 고른다. 등락 방향처럼 제목에 이미
+숫자로 적혀 있는 내용을 아이콘으로 되풀이하지 않는다.
+
+JXA 주의: `$.NSGraphicsContext.currentContext = ctx` 같은 **속성 대입은 조용히
+무시된다.** `setCurrentContext(ctx)` 로 호출해야 한다. 이걸 놓쳐서 아무것도 그리지
+않은 투명 PNG 가 '성공' 으로 나온 적이 있다. 그래서 렌더러가 저장 전에 칠해진
+픽셀이 있는지 검사한다.
 
 아이콘은 반드시 `icons/` 하위에 둔다. 번들 최상위의 `*.png` 는 Alfred 가 사용자
 지정 아이콘(`icon.png`, `<오브젝트 uid>.png`)을 두는 자리이고, `sync.sh` 가 그걸

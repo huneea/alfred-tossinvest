@@ -56,7 +56,7 @@ def _candidates(token, matches):
                 arg=STOCK_URL.format(symbol),
                 uid=symbol,
                 copy=symbol,
-                icon=icons.STAR if symbol in saved else None,
+                icon=icons.for_stock(symbol, saved),
                 mods=alfred.toggle_mod(symbol, symbol in saved),
             )
         )
@@ -75,7 +75,7 @@ def _detail(token, entry):
     saved = set(store.watchlist())
     mods = alfred.toggle_mod(symbol, symbol in saved)
 
-    def row(title, subtitle, icon=icons.INFO):
+    def row(title, subtitle, icon=icons.STOCK):
         return alfred.item(title, subtitle, arg=url, copy=symbol, mods=mods, icon=icon)
 
     rate = change.get("changeRate")
@@ -89,7 +89,7 @@ def _detail(token, entry):
         row(
             headline,
             "{0} · {1} · ↩ 토스증권에서 열기".format(name, symbol),
-            icons.for_change(rate) or icons.INFO,
+            icons.for_stock(symbol, saved),
         ),
         row(
             "시 {0} · 고 {1} · 저 {2}".format(
@@ -98,10 +98,12 @@ def _detail(token, entry):
                 fmt.money(change.get("low"), currency),
             ),
             "당일 시가 · 고가 · 저가",
+            icons.CANDLE,
         ),
         row(
             "거래량 {0}".format(fmt.number(change.get("volume"))),
             "전일 종가 {0}".format(fmt.money(change.get("prevClose"), currency)),
+            icons.VOLUME,
         ),
     ]
 
@@ -147,6 +149,7 @@ def _detail(token, entry):
                 fmt.money(limits.get("lowerLimitPrice"), currency),
             ),
             "가격 제한폭",
+            icons.LIMIT,
         ))
     except Exception:
         pass
@@ -157,7 +160,7 @@ def _detail(token, entry):
 def main():
     query = (sys.argv[1] if len(sys.argv) > 1 else "").strip()
     if not query:
-        alfred.empty("종목명 또는 티커를 입력하세요", "예: 삼성전자, 005930")
+        alfred.empty("종목명 또는 티커를 입력하세요", "예: 삼성전자, 005930", icon=icons.SEARCH)
         return
 
     token = auth.access_token()

@@ -56,8 +56,7 @@ def listing(token, symbols, heading):
                 arg=stock_url(symbol),
                 uid=symbol,
                 copy=symbol,
-                # 등락을 못 구한 종목은 관심종목 표시로 대신한다.
-                icon=icons.for_change(rate) or (icons.STAR if symbol in saved else None),
+                icon=icons.for_stock(symbol, saved),
                 mods=alfred.toggle_mod(symbol, symbol in saved),
             )
         )

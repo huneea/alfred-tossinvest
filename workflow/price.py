@@ -28,11 +28,11 @@ def _search(token, query):
     items = []
     for entry in matches:
         symbol = entry.get("symbol") or ""
-        marker = "★ " if symbol in saved else ""
         items.append(
             alfred.item(
-                title="{0}{1}  {2}".format(
-                    marker, entry.get("name") or symbol, view.price_text(quotes.get(symbol))
+                # 관심종목 여부는 아이콘(별)이 알려주므로 제목에 표시를 덧붙이지 않는다.
+                title="{0}  {1}".format(
+                    entry.get("name") or symbol, view.price_text(quotes.get(symbol))
                 ),
                 subtitle="{0} · {1} · ⌘↩ 관심종목 {2}".format(
                     symbol,
@@ -42,9 +42,7 @@ def _search(token, query):
                 arg=view.stock_url(symbol),
                 uid=symbol,
                 copy=symbol,
-                # 검색 결과에는 등락을 붙이지 않으므로(종목당 호출이 든다)
-                # 관심종목 여부만 아이콘으로 표시한다.
-                icon=icons.STAR if symbol in saved else None,
+                icon=icons.for_stock(symbol, saved),
                 mods=alfred.toggle_mod(symbol, symbol in saved),
             )
         )
@@ -73,6 +71,7 @@ def main():
     alfred.empty(
         "종목명 또는 티커를 입력하세요",
         "검색 결과에서 ⌘↩ 를 누르면 관심종목으로 등록됩니다. 예: 삼성전자, 005930",
+        icon=icons.SEARCH,
     )
 
 

@@ -89,7 +89,7 @@ def main():
                 arg=seq,
                 uid=seq,
                 copy=seq,
-                icon=icons.ACCOUNT,
+                icon=icons.CARD,
             )
         )
 

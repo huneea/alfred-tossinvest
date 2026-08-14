@@ -31,7 +31,7 @@ def _overview_item(overview):
         title="총 평가금액  {0}".format(fmt.price(market_value.get("amount"))),
         subtitle=subtitle,
         valid=False,
-        icon=icons.for_change(profit_loss.get("rate")) or icons.INFO,
+        icon=icons.PORTFOLIO,
     )
 
 
@@ -63,7 +63,7 @@ def _position_item(position, saved):
         arg=view.stock_url(symbol),
         uid=symbol,
         copy=symbol,
-        icon=icons.for_change(profit_loss.get("rate")),
+        icon=icons.for_stock(symbol, saved),
         mods=alfred.toggle_mod(symbol, symbol in saved),
     )
 

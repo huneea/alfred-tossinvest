@@ -18,7 +18,7 @@ dist/
 # 편집한 내용과 갈라져 어느 쪽이 정본인지 알 수 없게 된다.
 workflow/info.plist
 # 아이콘도 build/icons.py 가 생성한다.
-workflow/icons/
+workflow/icons/    # assets/icons/*.svg 가 원본이다
 
 # Python
 __pycache__/

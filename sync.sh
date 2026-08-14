@@ -34,8 +34,8 @@ if [ -z "$TARGET" ]; then
 fi
 echo "    $TARGET"
 
-echo "==> 아이콘 생성"
-/usr/bin/python3 build/icons.py | sed 's/^/    /'
+echo "==> 아이콘 생성 (SVG -> PNG)"
+osascript -l JavaScript build/render_icons.js assets/icons workflow/icons 256 | sed 's/^/    /'
 
 echo "==> info.plist 생성"
 /usr/bin/python3 build/info_plist.py >/dev/null
