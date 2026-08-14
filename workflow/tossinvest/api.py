@@ -137,7 +137,7 @@ def prices(token, symbols):
     return collected
 
 
-def candles(token, symbol, interval="1d", count=2):
+def candles(token, symbol, interval="1d", count=2, adjusted=True):
     """시간순으로 정렬된 캔들 목록.
 
     API 가 어떤 순서로 주는지 문서에 명시돼 있지 않으므로 timestamp 로 직접
@@ -146,7 +146,13 @@ def candles(token, symbol, interval="1d", count=2):
     result = client.get(
         "/api/v1/candles",
         token,
-        params={"symbol": symbol, "interval": interval, "count": count},
+        params={
+            "symbol": symbol,
+            "interval": interval,
+            "count": count,
+            # 기본값이 true 다. 배당·분할 보정이 들어간 수정주가를 준다.
+            "adjusted": "true" if adjusted else "false",
+        },
     )
     entries = (result or {}).get("candles") or []
     return sorted(entries, key=lambda c: c.get("timestamp") or "")
@@ -303,8 +309,13 @@ def daily_change(token, symbol, last_price=None, prev_close=None):
     }
 
     reference = last_price if fmt.to_decimal(last_price) is not None else latest.get("closePrice")
-    # 기준가를 받았으면 그것을 쓴다. 캔들 종가는 수정주가라 등락률 기준과 다르다.
-    previous = prev_close if prev_close is not None else previous_close(entries)
+    # 캔들이 말하는 전일 종가. 기준가와 어긋나면 데이터가 이상하다는 신호라
+    # 계산에 쓰지 않더라도 값 자체는 들고 나간다.
+    from_candle = previous_close(entries)
+    info["candlePrevClose"] = from_candle
+
+    # 기준가를 받았으면 그것을 쓴다.
+    previous = prev_close if prev_close is not None else from_candle
     change, rate = change_against(reference, previous)
     if change is None:
         return info

@@ -151,6 +151,27 @@ def _detail(token, entry):
             icons.WARN,
         ))
 
+    # 기준가와 캔들이 말하는 전일 종가가 다르면 그 사실을 숨기지 않고 보여준다.
+    # 어느 쪽이 이상한지 판단하려면 보정 없는 원본 종가까지 있어야 하므로 이때만
+    # 한 번 더 받는다. 평소(두 값이 같을 때)에는 이 줄도 호출도 없다.
+    from_candle = change.get("candlePrevClose")
+    if base is not None and from_candle is not None and fmt.to_decimal(base) != fmt.to_decimal(from_candle):
+        try:
+            raw = api.previous_close(
+                api.candles(token, symbol, interval="1d", count=3, adjusted=False)
+            )
+        except Exception:
+            raw = None
+        items.append(row(
+            "전일 종가가 서로 다릅니다",
+            "기준가 {0} · 캔들(보정) {1} · 캔들(원본) {2}".format(
+                fmt.money(base, currency),
+                fmt.money(from_candle, currency),
+                fmt.money(raw, currency),
+            ),
+            icons.WARN,
+        ))
+
     upper = limits.get("upperLimitPrice")
     lower = limits.get("lowerLimitPrice")
     if upper is not None or lower is not None:
