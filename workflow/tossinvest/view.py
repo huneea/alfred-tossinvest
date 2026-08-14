@@ -28,7 +28,10 @@ def listing(token, symbols, heading):
     전제이며, 검색 결과처럼 개수가 유동적인 곳에서는 쓰지 않는다.
     """
     quotes = api.prices(token, symbols)
-    changes = api.daily_changes(token, symbols)
+    # 등락은 화면에 보여줄 현재가와 같은 기준으로 계산한다. 캔들 종가로 계산하면
+    # 표시된 현재가와 등락이 서로 맞지 않는다.
+    last_prices = {symbol: quote.get("lastPrice") for symbol, quote in quotes.items()}
+    changes = api.daily_changes(token, symbols, last_prices)
     names = api.symbol_names(token, symbols)
     saved = set(store.watchlist())
 

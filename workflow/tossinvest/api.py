@@ -108,17 +108,22 @@ def candles(token, symbol, interval="1d", count=2):
     return sorted(entries, key=lambda c: c.get("timestamp") or "")
 
 
-def daily_change(token, symbol):
+def daily_change(token, symbol, last_price=None):
     """전일 종가 대비 등락과 당일 시/고/저·거래량.
 
     /api/v1/prices 에는 등락률도 거래량도 없어서 일봉 2개로 직접 계산한다.
+
+    등락의 기준가는 last_price 를 주면 그 값을, 없으면 당일 캔들의 종가를 쓴다.
+    일봉의 closePrice 와 /api/v1/prices 의 lastPrice 는 갱신 시점이 달라 장중에
+    서로 어긋난다. 화면에 현재가를 lastPrice 로 보여주면서 등락만 캔들로 계산하면
+    '현재가 - 전일종가' 가 표시된 등락과 맞지 않는다. 그래서 보여주는 값과 같은
+    기준으로 계산하도록 호출부가 현재가를 넘긴다.
     """
     entries = candles(token, symbol, interval="1d", count=2)
     if not entries:
         return None
 
     latest = entries[-1]
-    close = fmt.to_decimal(latest.get("closePrice"))
     info = {
         "open": latest.get("openPrice"),
         "high": latest.get("highPrice"),
@@ -131,7 +136,11 @@ def daily_change(token, symbol):
         "prevClose": None,
     }
 
-    if len(entries) < 2 or close is None:
+    reference = fmt.to_decimal(last_price)
+    if reference is None:
+        reference = fmt.to_decimal(latest.get("closePrice"))
+
+    if len(entries) < 2 or reference is None:
         return info
 
     previous = fmt.to_decimal(entries[-2].get("closePrice"))
@@ -139,27 +148,31 @@ def daily_change(token, symbol):
         return info
 
     info["prevClose"] = entries[-2].get("closePrice")
-    info["change"] = close - previous
-    info["changeRate"] = (close - previous) / previous * 100
+    info["change"] = reference - previous
+    info["changeRate"] = (reference - previous) / previous * 100
     return info
 
 
-def daily_changes(token, symbols):
+def daily_changes(token, symbols, last_prices=None):
     """여러 종목의 등락을 병렬로 모은다.
 
     캔들은 종목당 한 번씩 호출해야 해서 순차로 돌리면 목록이 눈에 띄게 느려진다.
     MARKET_DATA_CHART 는 20 req/s 이므로 동시 실행 수를 넉넉히 아래로 잡는다.
     한 종목이 실패해도 화면 전체를 버리지 않고 그 종목만 비워둔다.
+
+    last_prices 는 {종목코드: 현재가}. 화면에 보여줄 현재가와 같은 기준으로
+    등락을 계산하기 위해 넘긴다.
     """
     symbols = [s for s in symbols if s]
     if not symbols:
         return {}
 
+    last_prices = last_prices or {}
     collected = {}
 
     def fetch(symbol):
         try:
-            return symbol, daily_change(token, symbol)
+            return symbol, daily_change(token, symbol, last_prices.get(symbol))
         except TossError:
             return symbol, None
 

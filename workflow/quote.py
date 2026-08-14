@@ -69,7 +69,8 @@ def _detail(token, entry):
 
     quote = api.prices(token, [symbol]).get(symbol) or {}
     currency = quote.get("currency") or "KRW"
-    change = api.daily_change(token, symbol) or {}
+    # 등락은 아래 headline 에 찍는 현재가와 같은 값을 기준으로 계산한다.
+    change = api.daily_change(token, symbol, quote.get("lastPrice")) or {}
     saved = set(store.watchlist())
     mods = alfred.toggle_mod(symbol, symbol in saved)
 
