@@ -33,7 +33,7 @@ grant_type=client_credentials&client_id=...&client_secret=...
 | --- | --- | --- |
 | 계좌 목록 | `GET /api/v1/accounts` | 없음 |
 | 보유 주식 | `GET /api/v1/holdings` | 계좌 헤더 |
-| 매수 가능 금액 | `GET /api/v1/buying-power` | 계좌 헤더 |
+| 매수 가능 금액 | `GET /api/v1/buying-power` | 계좌 헤더 + `currency` **필수** |
 | 현재가 | `GET /api/v1/prices` | `symbols` (쉼표 구분, 최대 200) |
 | 전종목 마스터 | `GET /api/v1/stocks/all` | `market` 필수, `status` 기본 ACTIVE |
 
@@ -63,10 +63,33 @@ summary: `totalEvaluationAmount`, `totalPurchaseAmount`, `totalProfitLoss`,
 `GET /api/v1/stocks/all` → `result: []`
 `symbol`, `name`, `securityType`, `isCommonShare`, `isinCode`
 
-### 미확인 필드
+`GET /api/v1/buying-power` → `result: {}`
+`currency`, `cashBuyingPower` (현금 기반 매수 가능 금액, 미수 미발생 기준)
 
-`GET /api/v1/buying-power` — 응답 스키마를 확인하지 못했다. `accounts.py` 가
-`amount` 를 가정하고 있으니 첫 실호출 때 실제 응답을 찍어보고 고칠 것.
+**`currency` 는 필수 쿼리 파라미터다.** 빼면 400 이 떨어진다. 이 엔드포인트는
+Account 가 아니라 **ORDER_INFO** rate limit 그룹(6 req/s, 09:00–09:10 KST 3 req/s)
+에 속한다.
+
+### 실제 응답이 문서와 다른 부분
+
+`accountSeq` 는 스펙 요약에 string 으로 적혀 있었지만 **실제로는 숫자**로 온다.
+헤더 값과 Alfred 항목의 title/arg/uid 는 문자열이어야 해서 `str()` 로 맞춘다.
+`OrderInfoApi.md` 의 파라미터 표에도 `X-Tossinvest-Account` 가 Long 으로 적혀 있다.
+
+`accountName`, `accountNumber` 는 비어서 오는 경우가 있다. `accounts.py` 가
+`계좌 <seq>` 로 떨어뜨린다.
+
+### 개별 엔드포인트 문서
+
+`openapi.json` 은 커서 통째로 읽으면 잘린다. 엔드포인트별 문서를 직접 보는 편이
+빠르고 정확하다.
+
+- `…/api-reference/Apis/OrderInfoApi.md` — buying-power, sellable-quantity, commissions
+- `…/api-reference/Apis/AccountApi.md` — accounts
+- `…/api-reference/Apis/AssetApi.md` — holdings
+- `…/api-reference/Models/<모델명>.md` — 응답 모델 필드
+
+베이스: `https://openapi.tossinvest.com/openapi-docs/latest/`
 
 ## 오류
 

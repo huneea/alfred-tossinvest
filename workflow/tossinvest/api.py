@@ -60,9 +60,17 @@ def holdings(token, account_seq):
     }
 
 
-def buying_power(token, account_seq):
-    """매수 가능 금액."""
-    return client.get("/api/v1/buying-power", token, account_seq=account_seq) or {}
+def buying_power(token, account_seq, currency="KRW"):
+    """현금 기반 매수 가능 금액. {"currency": ..., "cashBuyingPower": ...} 형태.
+
+    currency 는 필수 쿼리 파라미터다. 빼면 400 이 떨어진다.
+    """
+    return client.get(
+        "/api/v1/buying-power",
+        token,
+        params={"currency": currency},
+        account_seq=account_seq,
+    ) or {}
 
 
 def prices(token, symbols):
