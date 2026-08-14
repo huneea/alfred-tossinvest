@@ -26,33 +26,42 @@
 curl -s https://api.ipify.org
 ```
 
-## 설치
+## 빌드
 
-`workflow/` 디렉터리의 내용이 Alfred 워크플로우 번들입니다. Alfred 설정에서
-빈 워크플로우를 만든 뒤 이 파일들을 번들 안에 넣고, Script Filter 를
-`price.py` / `holdings.py` / `accounts.py` 에 연결합니다.
+```sh
+./build.sh
+```
 
-Script Filter 설정:
+`dist/Toss Invest.alfredworkflow` 가 만들어집니다. **더블클릭하면 설치됩니다.**
 
-- Language: `/bin/bash`
-- Script: `/usr/bin/python3 price.py "$1"`
-- with input as **argv**
+`.alfredworkflow` 는 `info.plist` 가 최상위에 있는 폴더를 zip 으로 압축하고
+확장자만 바꾼 것입니다. `build.sh` 가 하는 일은 네 단계입니다.
 
-`python3` 를 그냥 쓰지 말고 `/usr/bin/python3` 로 적으세요. Alfred 는 최소
-PATH 로 스크립트를 실행해서 pyenv·nvm 경로를 보지 못합니다.
+1. `build/info_plist.py` 로 `workflow/info.plist` 생성
+2. `plutil -lint` 로 plist 검증
+3. `compileall` 로 파이썬 문법 검증
+4. `workflow/` 의 **내용물**을 zip (디렉터리째 압축하면 Alfred 가 `info.plist`
+   를 못 찾습니다)
+
+`info.plist` 는 손으로 쓰지 않고 `build/info_plist.py` 에서 생성합니다. 오브젝트
+UID 는 스크립트에 고정돼 있어 다시 빌드해도 사용자가 지정한 핫키와 연결이
+유지됩니다.
+
+Alfred UI 에서 워크플로우를 직접 수정했다면 그 내용은 다음 빌드 때 덮어써집니다.
+바꾼 것을 유지하려면 `build/info_plist.py` 에 반영하세요.
 
 ## 설정
 
-Alfred 워크플로우 설정(**Configure Workflow > Variables**)에 등록합니다.
+설치 후 Alfred 워크플로우 화면의 **Configure Workflow** 에서 입력합니다.
 
-| 변수 | 필수 | 설명 |
-| --- | --- | --- |
-| `TOSS_CLIENT_ID` | 필수 | 발급받은 client id |
-| `TOSS_CLIENT_SECRET` | 필수 | 발급받은 client secret |
-| `TOSS_ACCOUNT_SEQ` | 선택 | 사용할 계좌. 비우면 첫 번째 계좌를 씁니다 |
+| 항목 | 변수 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| Client ID | `TOSS_CLIENT_ID` | 필수 | 발급받은 client id |
+| Client Secret | `TOSS_CLIENT_SECRET` | 필수 | 발급받은 client secret |
+| Account Seq | `TOSS_ACCOUNT_SEQ` | 선택 | 사용할 계좌. 비우면 첫 번째 계좌 |
 
-두 자격증명에는 **"Don't Export"** 를 체크하세요. 워크플로우를 `.alfredworkflow`
-로 내보낼 때 값이 함께 딸려가는 것을 막습니다.
+세 값 모두 `variablesdontexport` 에 등록돼 있어 워크플로우를 `.alfredworkflow`
+로 내보낼 때 값이 딸려가지 않습니다.
 
 ## 터미널에서 실행
 

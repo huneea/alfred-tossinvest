@@ -11,9 +11,12 @@ secrets.json
 credentials.json
 
 # 빌드 산출물
+# build/ 는 빌드 "스크립트" 디렉터리라 커밋 대상이다. 제외하지 않는다.
 dist/
-build/
 *.alfredworkflow
+# info.plist 는 build/info_plist.py 가 생성한다. 생성물을 커밋하면 Alfred UI 에서
+# 편집한 내용과 갈라져 어느 쪽이 정본인지 알 수 없게 된다.
+workflow/info.plist
 
 # Python
 __pycache__/
