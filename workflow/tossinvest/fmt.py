@@ -90,6 +90,40 @@ def signed_ratio(value):
     return signed_rate(ratio * 100)
 
 
+# 상승 빨강, 하락 파랑. 국내 시장 관례를 따른다.
+RATE_UP = "🔴"
+RATE_DOWN = "🔵"
+
+
+def colored_rate(value):
+    """등락률 앞에 색 이모지를 붙인다.
+
+    Alfred 결과 항목에는 텍스트 스타일·색상 키가 없다. 색으로 등락을 구분하려면
+    이모지가 유일한 수단이다. 방향과 색을 동시에 주는 이모지는 없어서(방향
+    이모지는 전부 회색) 색은 이모지가, 방향은 +/- 부호가 맡는다.
+
+    눈으로 훑는 제목에만 쓴다. 부제까지 넣으면 이모지가 너무 많아진다.
+    보합에는 붙이지 않는다.
+    """
+    rate = to_decimal(value)
+    if rate is None:
+        return "-"
+    text = signed_rate(rate)
+    if rate > 0:
+        return "{0} {1}".format(RATE_UP, text)
+    if rate < 0:
+        return "{0} {1}".format(RATE_DOWN, text)
+    return text
+
+
+def colored_ratio(value):
+    """소수비율로 오는 손익률을 색 이모지와 함께 퍼센트로."""
+    ratio = to_decimal(value)
+    if ratio is None:
+        return "-"
+    return colored_rate(ratio * 100)
+
+
 def signed_number(value, unit=""):
     """부호를 붙인 수량. 순매수처럼 음수가 의미를 갖는 값에 쓴다."""
     amount = to_decimal(value)

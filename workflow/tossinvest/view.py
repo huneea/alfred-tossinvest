@@ -55,7 +55,7 @@ def stock_item(symbol, name, quote, rates, market, saved):
     rates = rates or {}
     title = "{0}  {1}".format(name, price_text(quote))
     if rates.get("rate") is not None:
-        title += "  {0}".format(fmt.signed_rate(rates["rate"]))
+        title += "  {0}".format(fmt.colored_rate(rates["rate"]))
 
     regular = rates.get("regular")
     return alfred.item(

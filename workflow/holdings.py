@@ -57,7 +57,7 @@ def _position_item(position, saved):
         title="{0}  {1}  {2}".format(
             name,
             fmt.money(market_value.get("amount"), currency),
-            fmt.signed_ratio(profit_loss.get("rate")),
+            fmt.colored_ratio(profit_loss.get("rate")),
         ),
         subtitle=subtitle,
         arg=view.stock_url(symbol),

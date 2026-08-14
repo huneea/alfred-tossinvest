@@ -94,7 +94,7 @@ def _detail(token, entry):
     headline = fmt.money(quote.get("lastPrice"), currency)
     if rate is not None:
         headline += "   {0}  ({1})".format(
-            fmt.signed_rate(rate), fmt.signed_money(change.get("change"), currency)
+            fmt.colored_rate(rate), fmt.signed_money(change.get("change"), currency)
         )
 
     # 일봉 종가가 기준가와 다르면 그 기준의 등락률도 함께 알려준다. 기준가는

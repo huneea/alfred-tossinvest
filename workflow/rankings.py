@@ -74,7 +74,7 @@ def main():
                     entry.get("rank"),
                     name,
                     fmt.money(price.get("lastPrice"), currency),
-                    fmt.signed_ratio(price.get("changeRate")),
+                    fmt.colored_ratio(price.get("changeRate")),
                 ),
                 # 어떤 랭킹인지는 모든 행이 같으므로 넣지 않는다. 행마다 달라지는
                 # 값만 부제에 둔다.

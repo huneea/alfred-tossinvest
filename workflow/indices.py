@@ -29,7 +29,7 @@ def main():
         _, rate = api.change_against(last, previous.get(symbol))
         title = "{0}  {1}".format(symbol, fmt.number(last, DECIMALS))
         if rate is not None:
-            title += "  {0}".format(fmt.signed_rate(rate))
+            title += "  {0}".format(fmt.colored_rate(rate))
 
         items.append(
             alfred.item(
