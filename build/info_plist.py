@@ -367,7 +367,7 @@ def build():
             "TOSS_CLIENT_SECRET",
             "TOSS_ACCOUNT_SEQ",
         ],
-        "version": "0.1.0",
+        "version": "0.1.1",
     }
 
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

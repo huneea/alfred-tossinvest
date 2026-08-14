@@ -7,10 +7,10 @@
 #   prefs.plist  자격증명(Client ID/Secret)이 여기 있다. 절대 건드리지 않는다.
 #   info.plist   사용자가 지정한 핫키가 여기 들어 있다. 덮어쓰기 전에 뽑아서
 #                새로 만든 plist 에 다시 심는다.
-#   /*.png       Alfred UI 에서 지정한 아이콘이다. 워크플로우 아이콘은 icon.png,
-#                오브젝트별 아이콘은 <오브젝트 uid>.png 로 번들 최상위에 저장된다.
-#                소스에는 없는 파일이라 --delete 가 지워버린 적이 있다. 우리가
-#                만드는 icons/ 하위는 동기화해야 하므로 최상위에만 앵커한다.
+#   /*.png       Alfred UI 에서 지정한 오브젝트별 아이콘(<오브젝트 uid>.png)이
+#                번들 최상위에 저장된다. 소스에는 없는 파일이라 --delete 가
+#                지워버린 적이 있다. icons/ 하위와 워크플로우 아이콘(icon.png)은
+#                우리가 관리하므로 그 둘만 예외로 통과시킨다.
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -54,6 +54,7 @@ find workflow -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
 # rsync 가 삭제 대상에서도 빼주므로 prefs.plist 는 안전하다.
 rsync -a --delete \
     --exclude 'prefs.plist' \
+    --include '/icon.png' \
     --exclude '/*.png' \
     --exclude '.DS_Store' \
     --exclude '__pycache__' \
