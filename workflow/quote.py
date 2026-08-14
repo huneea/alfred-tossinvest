@@ -57,7 +57,7 @@ def _candidates(token, matches):
                 uid=symbol,
                 copy=symbol,
                 icon=icons.for_stock(symbol, saved),
-                mods=alfred.toggle_mod(symbol, symbol in saved),
+                mods=alfred.stock_mods(symbol, symbol in saved),
                 autocomplete=entry.get("name") or symbol,
             )
         )
@@ -84,7 +84,7 @@ def _detail(token, entry):
     # 등락은 아래 headline 에 찍는 현재가와 같은 값을 기준으로 계산한다.
     change = api.daily_change(token, symbol, quote.get("lastPrice"), base) or {}
     saved = set(store.watchlist())
-    mods = alfred.toggle_mod(symbol, symbol in saved)
+    mods = alfred.stock_mods(symbol, symbol in saved)
 
     def row(title, subtitle, icon=icons.STOCK):
         return alfred.item(title, subtitle, arg=url, copy=symbol, mods=mods, icon=icon)

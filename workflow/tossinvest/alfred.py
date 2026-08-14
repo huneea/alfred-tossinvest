@@ -44,14 +44,30 @@ def item(title, subtitle="", arg=None, uid=None, valid=True, copy=None, icon=Non
     return entry
 
 
-def toggle_mod(symbol, is_saved):
-    """관심종목 토글용 ⌘ 수식키 정의."""
+def stock_mods(symbol, is_saved):
+    """종목 항목의 수식키 정의.
+
+    ⌘ 관심종목 토글, ⌥ 맨 위로, ⌃ 맨 아래로.
+
+    순서 변경은 관심종목에만 의미가 있으므로 등록되지 않은 종목에서는 valid 를
+    꺼서 실행되지 않게 한다. 그냥 빼버리면 Alfred 가 항목의 기본 arg 를 대신
+    넘겨 엉뚱한 값이 순서 변경 스크립트로 들어간다.
+    """
+    def reorder(where, label):
+        return {
+            "arg": "{0}:{1}".format(where, symbol),
+            "subtitle": label if is_saved else "관심종목만 순서를 바꿀 수 있습니다",
+            "valid": is_saved,
+        }
+
     return {
         "cmd": {
             "arg": symbol,
             "subtitle": "관심종목에서 제거" if is_saved else "관심종목에 추가",
             "valid": True,
-        }
+        },
+        "alt": reorder("top", "맨 위로"),
+        "ctrl": reorder("bottom", "맨 아래로"),
     }
 
 

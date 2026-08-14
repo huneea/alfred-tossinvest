@@ -73,6 +73,29 @@ def toggle_watchlist(symbol):
     return True, "관심종목에 추가했습니다"
 
 
+def move_to_top(symbol):
+    """관심종목 맨 앞으로. 목록에 없으면 아무 것도 하지 않는다."""
+    return _move(symbol, to_top=True)
+
+
+def move_to_bottom(symbol):
+    """관심종목 맨 뒤로."""
+    return _move(symbol, to_top=False)
+
+
+def _move(symbol, to_top):
+    symbols = _read(WATCHLIST_FILE)
+    if symbol not in symbols:
+        return False
+    symbols.remove(symbol)
+    if to_top:
+        symbols.insert(0, symbol)
+    else:
+        symbols.append(symbol)
+    _write(WATCHLIST_FILE, symbols)
+    return True
+
+
 def recent():
     return _read(RECENT_FILE)
 

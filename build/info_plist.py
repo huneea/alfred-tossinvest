@@ -32,11 +32,14 @@ UID_TOGGLE = "A1B2C3D4-0008-4000-8000-000000000008"
 UID_NOTIFY = "A1B2C3D4-0009-4000-8000-000000000009"
 UID_HOTKEY = "A1B2C3D4-0010-4000-8000-000000000010"
 UID_WATCHLIST = "A1B2C3D4-0011-4000-8000-000000000011"
+UID_REORDER = "A1B2C3D4-0012-4000-8000-000000000012"
 
 # NSEvent 수식키 플래그. Alfred 는 연결마다 이 값으로 어떤 수식키를 눌렀을 때
 # 그 경로로 갈지 판단한다.
 MOD_NONE = 0
 MOD_CMD = 1048576
+MOD_ALT = 524288
+MOD_CTRL = 262144
 
 README = """토스증권 Open API 로 시세와 계좌를 조회합니다. 조회 전용이며 주문 기능은 없습니다.
 
@@ -53,6 +56,7 @@ README = """토스증권 Open API 로 시세와 계좌를 조회합니다. 조�
 
   ↩   토스증권에서 열기 (최근 조회에 기록됩니다)
   ⌘↩  관심종목 추가/제거
+  ⌥↩  관심종목 맨 위로   ⌃↩  맨 아래로
 
 ■ 관심종목 관리
   등록  tsp 로 종목을 검색한 뒤 ⌘↩
@@ -207,6 +211,19 @@ def build():
             },
         },
         {
+            "uid": UID_REORDER,
+            "type": "alfred.workflow.action.script",
+            "version": 2,
+            "config": {
+                "concurrently": False,
+                "escaping": 102,
+                "script": '/usr/bin/python3 reorder.py "$1"',
+                "scriptargtype": 1,
+                "scriptfile": "",
+                "type": 0,
+            },
+        },
+        {
             "uid": UID_TOGGLE,
             "type": "alfred.workflow.action.script",
             "version": 2,
@@ -257,6 +274,18 @@ def build():
             "vitoclose": False,
         }
 
+    def _stock_links():
+        """종목 항목을 보여주는 화면의 공통 연결.
+
+        ↩ 열기, ⌘↩ 관심종목 토글, ⌥↩ 맨 위로, ⌃↩ 맨 아래로.
+        """
+        return [
+            link(UID_RECORD),
+            link(UID_TOGGLE, MOD_CMD, "관심종목 토글"),
+            link(UID_REORDER, MOD_ALT, "맨 위로"),
+            link(UID_REORDER, MOD_CTRL, "맨 아래로"),
+        ]
+
     plist = {
         "bundleid": BUNDLE_ID,
         "name": "Toss Invest",
@@ -269,25 +298,14 @@ def build():
         "objects": objects,
         "connections": {
             # ↩ 는 기록을 거쳐 링크로, ⌘↩ 는 관심종목 토글로 간다.
-            UID_PRICE: [
-                link(UID_RECORD),
-                link(UID_TOGGLE, MOD_CMD, "관심종목 토글"),
-            ],
-            UID_QUOTE: [
-                link(UID_RECORD),
-                link(UID_TOGGLE, MOD_CMD, "관심종목 토글"),
-            ],
-            UID_WATCHLIST: [
-                link(UID_RECORD),
-                link(UID_TOGGLE, MOD_CMD, "관심종목에서 제거"),
-            ],
-            UID_HOLDINGS: [
-                link(UID_RECORD),
-                link(UID_TOGGLE, MOD_CMD, "관심종목 토글"),
-            ],
+            UID_PRICE: _stock_links(),
+            UID_QUOTE: _stock_links(),
+            UID_WATCHLIST: _stock_links(),
+            UID_HOLDINGS: _stock_links(),
             UID_ACCOUNTS: [link(UID_CLIPBOARD)],
             UID_RECORD: [link(UID_OPEN_URL)],
             UID_TOGGLE: [link(UID_NOTIFY)],
+            UID_REORDER: [link(UID_NOTIFY)],
             # 핫키를 누르면 관심종목 목록(빈 쿼리의 주가 화면)이 바로 열린다.
             UID_HOTKEY: [link(UID_PRICE)],
         },
@@ -300,6 +318,7 @@ def build():
             UID_ACCOUNTS: {"xpos": 220, "ypos": 600},
             UID_RECORD: {"xpos": 520, "ypos": 120},
             UID_TOGGLE: {"xpos": 520, "ypos": 260},
+            UID_REORDER: {"xpos": 520, "ypos": 380},
             UID_OPEN_URL: {"xpos": 760, "ypos": 120},
             UID_NOTIFY: {"xpos": 760, "ypos": 260},
             UID_CLIPBOARD: {"xpos": 520, "ypos": 460},
