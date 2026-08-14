@@ -19,8 +19,9 @@ from tossinvest import alfred, api, auth, fmt, icons, store, text
 
 STOCK_URL = "https://tossinvest.com/stocks/{0}"
 
-# 호가는 단계가 많아 목록이 길어진다. 위에서 몇 단계만 보여준다.
-ORDERBOOK_LEVELS = 3
+# 호가는 단계가 많아 목록이 길어진다. Alfred 는 한 번에 9행까지만 보여주므로
+# 스프레드에 가까운 몇 단계만 남긴다.
+ORDERBOOK_LEVELS = 2
 
 
 def _exact_match(matches, query):
