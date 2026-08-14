@@ -36,6 +36,7 @@ UID_NOTIFY = "A1B2C3D4-0009-4000-8000-000000000009"
 UID_HOTKEY = "A1B2C3D4-0010-4000-8000-000000000010"
 UID_WATCHLIST = "A1B2C3D4-0011-4000-8000-000000000011"
 UID_REORDER = "A1B2C3D4-0012-4000-8000-000000000012"
+UID_INDICES = "A1B2C3D4-0013-4000-8000-000000000013"
 
 # NSEvent 수식키 플래그. Alfred 는 연결마다 이 값으로 어떤 수식키를 눌렀을 때
 # 그 경로로 갈지 판단한다.
@@ -56,6 +57,7 @@ README = """토스증권 Open API 로 시세와 계좌를 조회합니다. 조�
   tsh [티커]           보유 종목과 평가손익               (holdings)
   tsa                  계좌 목록과 매수가능금액           (accounts)
                        엔터로 accountSeq 복사
+  tsi                  코스피·코스닥 지수와 등락률        (index)
 
   ↩   토스증권에서 열기 (최근 조회에 기록됩니다)
   ⌘↩  관심종목 추가/제거
@@ -192,6 +194,14 @@ def build():
             "관심종목만 보기 · ⌘↩ 로 제거합니다",
         ),
         script_filter(
+            UID_INDICES,
+            "tsi",
+            "/usr/bin/python3 indices.py",
+            None,
+            "코스피·코스닥 지수와 등락률 · ↩ 로 지수값 복사",
+            takes_argument=False,
+        ),
+        script_filter(
             UID_QUOTE,
             "tsq",
             '/usr/bin/python3 quote.py "$1"',
@@ -306,6 +316,7 @@ def build():
             UID_WATCHLIST: _stock_links(),
             UID_HOLDINGS: _stock_links(),
             UID_ACCOUNTS: [link(UID_CLIPBOARD)],
+            UID_INDICES: [link(UID_CLIPBOARD)],
             UID_RECORD: [link(UID_OPEN_URL)],
             UID_TOGGLE: [link(UID_NOTIFY)],
             UID_REORDER: [link(UID_NOTIFY)],
@@ -319,6 +330,7 @@ def build():
             UID_QUOTE: {"xpos": 220, "ypos": 320},
             UID_HOLDINGS: {"xpos": 220, "ypos": 460},
             UID_ACCOUNTS: {"xpos": 220, "ypos": 600},
+            UID_INDICES: {"xpos": 220, "ypos": 740},
             UID_RECORD: {"xpos": 520, "ypos": 120},
             UID_TOGGLE: {"xpos": 520, "ypos": 260},
             UID_REORDER: {"xpos": 520, "ypos": 380},

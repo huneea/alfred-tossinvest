@@ -183,6 +183,24 @@ GET /api/v1/rankings?type=MARKET_TRADING_AMOUNT&marketCountry=KR&duration=realti
 `TOP_LOSERS`, `TOSS_SECURITIES_TRADING_AMOUNT`, `TOSS_SECURITIES_TRADING_VOLUME`.
 `TOP_GAINERS`/`TOP_LOSERS` 는 `basePrice` 가 duration 시작 시점 기준가다.
 
+## 지수 (코스피·코스닥)
+
+| 기능 | 엔드포인트 | 파라미터 |
+| --- | --- | --- |
+| 지수 현재가 | `GET /api/v1/market-indicators/prices` | `symbols` (쉼표 구분, 최대 200) |
+| 지수 일봉 | `GET /api/v1/market-indicators/{symbol}/candles` | `interval` 필수(1m·1d), `count` 최대 200 |
+
+심볼은 `KOSPI`, `KOSDAQ` 문자열이다.
+
+`MarketIndicatorPriceResponse` 는 `symbol`, `timestamp`, `lastPrice` 뿐이다.
+종목 시세와 마찬가지로 **등락률·전일 종가를 주지 않는다.**
+
+`MarketIndicatorCandle` 은 종목 캔들과 같은 구조다 — `timestamp`, `openPrice`,
+`highPrice`, `lowPrice`, `closePrice`, `volume`.
+
+지수에는 가격제한폭이 없어 기준가를 역산할 수 없다. 전일 종가는 일봉에서 구한다.
+지수는 정규장에서 산출되므로 넥스트장 때문에 어긋날 여지도 없다.
+
 ## 오류
 
 일반 엔드포인트:

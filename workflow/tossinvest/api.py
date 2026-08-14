@@ -283,6 +283,60 @@ def prev_closes(token, symbols):
     return {symbol: known.get(symbol) or {} for symbol in symbols}
 
 
+# 시장 지표 심볼. 문서의 심볼 카탈로그 중 이 워크플로우가 쓰는 것만 둔다.
+INDEX_SYMBOLS = ("KOSPI", "KOSDAQ")
+
+
+def index_prices(token, symbols=INDEX_SYMBOLS):
+    """지수 현재가. {symbol: {"lastPrice", "timestamp"}} 형태.
+
+    종목 시세와 마찬가지로 현재가만 준다. 등락률은 일봉으로 직접 계산한다.
+    """
+    result = client.get(
+        "/api/v1/market-indicators/prices",
+        token,
+        params={"symbols": ",".join(symbols)},
+    )
+    return {e.get("symbol"): e for e in (result or []) if e.get("symbol")}
+
+
+def index_candles(token, symbol, count=3):
+    """지수 일봉. 종목 캔들과 같은 구조({candles: [...]})다."""
+    result = client.get(
+        "/api/v1/market-indicators/{0}/candles".format(symbol),
+        token,
+        params={"interval": "1d", "count": count},
+    )
+    entries = (result or {}).get("candles") or []
+    return sorted(entries, key=lambda c: c.get("timestamp") or "")
+
+
+def index_prev_closes(token, symbols=INDEX_SYMBOLS):
+    """지수의 전일 종가. 종목과 같은 캐시를 쓴다(다음 장 시작까지 유효).
+
+    지수에는 가격제한폭이 없어 기준가를 역산할 수 없다. 일봉 종가가 유일한
+    수단이고, 지수는 정규장에서 산출되므로 넥스트장 때문에 어긋날 일도 없다.
+    """
+    known = _load_prev_closes()
+    missing = [s for s in symbols if s not in known]
+
+    if missing:
+        def fetch(symbol):
+            try:
+                return symbol, previous_close(index_candles(token, symbol))
+            except TossError:
+                return symbol, None
+
+        workers = min(CHANGE_WORKERS, len(missing))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            for symbol, close in pool.map(fetch, missing):
+                if close is not None:
+                    known[symbol] = {"base": close, "candle": close}
+        _store_prev_closes(known)
+
+    return {s: (known.get(s) or {}).get("base") for s in symbols}
+
+
 def daily_change(token, symbol, last_price=None, prev_close=None):
     """전일 종가 대비 등락과 당일 시/고/저·거래량.
 

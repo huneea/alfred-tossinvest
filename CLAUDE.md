@@ -36,6 +36,7 @@ workflow/                 # 이 디렉터리가 곧 Alfred 워크플로우 번�
 ├── quote.py              # Script Filter tsq — 한 종목 상세 시세
 ├── holdings.py           # Script Filter tsh — 보유 종목/평가손익
 ├── accounts.py           # Script Filter tsa — 계좌 목록 + 매수가능금액
+├── indices.py            # Script Filter tsi — 코스피·코스닥 지수
 ├── record.py             # Run Script — 최근 조회 기록 후 URL 통과
 ├── toggle.py             # Run Script — 관심종목 토글 (⌘↩)
 └── tossinvest/
