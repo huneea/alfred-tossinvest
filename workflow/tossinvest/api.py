@@ -303,33 +303,36 @@ def _read_investor_cache():
 
 
 def investor_trading(token, symbol):
-    """가장 최근 1일의 투자자별 매매동향. 없으면 None.
+    """투자자별 매매동향 기록 목록(최신순). 없으면 빈 목록.
+
+    2일치를 받는다. 당일 개인 잠정치는 제공되지 않아 null 이므로, 그럴 때 전일
+    확정치를 대신 보여주려면 하루치가 더 필요하다.
 
     국내 종목(KRX 6자리)만 지원하는 엔드포인트다. 그 외 심볼은 부르지 않는다.
     """
     if not (symbol or "").isdigit() or len(symbol) != 6:
-        return None
+        return []
 
     cache = _read_investor_cache()
     entry = cache.get(symbol)
-    if isinstance(entry, dict) and time.time() - entry.get("at", 0) < INVESTOR_TTL:
-        return entry.get("record")
+    if (isinstance(entry, dict) and "records" in entry
+            and time.time() - entry.get("at", 0) < INVESTOR_TTL):
+        return entry.get("records") or []
 
     result = client.get(
         "/api/v1/stocks/{0}/investor-trading".format(symbol),
         token,
-        params={"count": 1},
+        params={"count": 2},
     )
     records = (result or {}).get("records") or []
-    record = records[0] if records else None
 
-    cache[symbol] = {"at": time.time(), "record": record}
+    cache[symbol] = {"at": time.time(), "records": records}
     try:
         with open(_investor_file(), "w", encoding="utf-8") as handle:
             json.dump(cache, handle, ensure_ascii=False, default=str)
     except (IOError, OSError):
         pass
-    return record
+    return records
 
 
 # 랭킹. basePrice·changeRate 를 직접 주는 유일한 엔드포인트다.

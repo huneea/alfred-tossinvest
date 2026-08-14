@@ -166,27 +166,33 @@ def _detail(token, entry):
 
     # 투자자별 순매수. 일별 값이라 캐싱되므로 자동 갱신 때마다 나가지는 않는다.
     try:
-        flow = api.investor_trading(token, symbol)
+        records = api.investor_trading(token, symbol)
     except Exception:
-        flow = None
-    if flow:
-        def net(group):
-            return (flow.get(group) or {}).get("netBuyVolume")
+        records = []
+    if records:
+        def net(record, group):
+            return ((record or {}).get(group) or {}).get("netBuyVolume")
 
-        detail = "투자자별 순매수 ({0} 기준)".format(flow.get("date") or "-")
-        if net("individual") is None:
-            # 문서에 명시돼 있다. 값이 비는 게 오류가 아니라는 것을 알려준다.
-            detail += " · 개인 확정치는 장 마감 후 채워집니다"
+        today = records[0]
+        parts = [
+            "외국인 {0}".format(fmt.signed_number(net(today, "foreigner"), "주")),
+            "기관 {0}".format(fmt.signed_number(net(today, "institution"), "주")),
+        ]
+        detail = "투자자별 순매수 ({0} 기준)".format(today.get("date") or "-")
 
-        items.append(row(
-            "외국인 {0} · 기관 {1} · 개인 {2}".format(
-                fmt.signed_number(net("foreigner"), "주"),
-                fmt.signed_number(net("institution"), "주"),
-                fmt.signed_number(net("individual"), "주"),
-            ),
-            detail,
-            icons.VOLUME,
-        ))
+        individual = net(today, "individual")
+        if individual is not None:
+            parts.append("개인 {0}".format(fmt.signed_number(individual, "주")))
+        else:
+            # 당일 개인 잠정치는 제공되지 않는다(문서에 명시). 빈 값을 '-' 로
+            # 두면 오류처럼 보이므로 항목을 빼고, 대신 전일 확정치를 알려준다.
+            previous = records[1] if len(records) > 1 else None
+            earlier = net(previous, "individual")
+            detail += " · 개인은 장 마감 후 확정"
+            if earlier is not None:
+                detail += " (전일 {0})".format(fmt.signed_number(earlier, "주"))
+
+        items.append(row(" · ".join(parts), detail, icons.VOLUME))
 
     upper = limits.get("upperLimitPrice")
     lower = limits.get("lowerLimitPrice")
