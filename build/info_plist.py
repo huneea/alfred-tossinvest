@@ -83,8 +83,17 @@ README = """토스증권 Open API 로 시세와 계좌를 조회합니다. 조�
 """
 
 
-def script_filter(uid, keyword, script, title, subtext, takes_argument=True):
-    """Script Filter 오브젝트 하나."""
+def script_filter(uid, keyword, script, arg_hint, subtext, takes_argument=True):
+    """Script Filter 오브젝트 하나.
+
+    제목은 키워드에서 조립한다. 'ts' 만 쳤을 때 뜨는 목록에서 어떤 키워드인지,
+    뒤에 무엇을 더 입력해야 하는지 한눈에 보이게 하기 위해서다. 손으로 적으면
+    키워드를 바꿀 때 제목이 따라오지 않고 어긋난다.
+
+    arg_hint 는 <필수> / [선택] 표기를 그대로 넘긴다. 인자가 없으면 None.
+    """
+    title = "{0} {1}".format(keyword, arg_hint) if arg_hint else keyword
+
     return {
         "uid": uid,
         "type": "alfred.workflow.input.scriptfilter",
@@ -121,22 +130,22 @@ def build():
             UID_PRICE,
             "tsp",
             '/usr/bin/python3 price.py "$1"',
-            "종목 시세 조회",
-            "종목명 또는 티커로 검색해 현재가를 봅니다",
+            "[종목명|티커]",
+            "비우면 관심종목 시세 · 입력하면 종목을 검색합니다",
         ),
         script_filter(
             UID_HOLDINGS,
             "tsh",
             '/usr/bin/python3 holdings.py "$1"',
-            "보유 종목 조회",
-            "보유 종목과 평가손익을 봅니다",
+            "[종목명]",
+            "보유 종목과 평가손익 · 입력하면 그 종목만 추립니다",
         ),
         script_filter(
             UID_ACCOUNTS,
             "tsa",
             "/usr/bin/python3 accounts.py",
-            "계좌 조회",
-            "계좌 목록과 매수가능금액을 봅니다",
+            None,
+            "계좌 목록과 매수가능금액 · ↩ 로 accountSeq 복사",
             takes_argument=False,
         ),
         {
@@ -167,15 +176,15 @@ def build():
             UID_WATCHLIST,
             "tsw",
             '/usr/bin/python3 watchlist.py "$1"',
-            "관심종목",
-            "등록한 관심종목만 봅니다. ⌘↩ 로 제거합니다",
+            "[검색어]",
+            "관심종목만 보기 · ⌘↩ 로 제거합니다",
         ),
         script_filter(
             UID_QUOTE,
             "tsq",
             '/usr/bin/python3 quote.py "$1"',
-            "상세 시세 조회",
-            "등락·시고저·거래량·호가를 봅니다",
+            "<종목명|티커>",
+            "상세 시세 — 등락·시고저·거래량·호가·상하한가",
         ),
         {
             # 최근 조회를 기록한 뒤 받은 URL 을 그대로 흘려보낸다. Script Filter 와
