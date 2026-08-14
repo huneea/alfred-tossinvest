@@ -65,6 +65,7 @@ def _position_item(position, saved):
         copy=symbol,
         icon=icons.for_stock(symbol, saved),
         mods=alfred.toggle_mod(symbol, symbol in saved),
+        autocomplete=name,
     )
 
 

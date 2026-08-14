@@ -58,6 +58,7 @@ def _candidates(token, matches):
                 copy=symbol,
                 icon=icons.for_stock(symbol, saved),
                 mods=alfred.toggle_mod(symbol, symbol in saved),
+                autocomplete=entry.get("name") or symbol,
             )
         )
     alfred.live(items)

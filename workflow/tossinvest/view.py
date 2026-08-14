@@ -61,6 +61,7 @@ def stock_item(symbol, name, quote, rate, market, saved):
         copy=symbol,
         icon=icons.for_stock(symbol, saved),
         mods=alfred.toggle_mod(symbol, symbol in saved),
+        autocomplete=name,
     )
 
 
