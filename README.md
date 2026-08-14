@@ -151,7 +151,11 @@ curl -s https://api.ipify.org
 ./build.sh
 ```
 
-`dist/Toss Invest.alfredworkflow` 가 만들어집니다. **더블클릭하면 설치됩니다.**
+`dist/Toss-Invest-v<버전>.alfredworkflow` 가 만들어집니다. **더블클릭하면 설치됩니다.**
+
+파일명에 버전이 들어갑니다. 릴리즈마다 이름이 같으면 브라우저가 예전 파일을
+재사용해 구버전을 설치하게 됩니다. 버전은 `build/info_plist.py` 의 `VERSION` 에서
+고칩니다.
 
 `.alfredworkflow` 는 `info.plist` 가 최상위에 있는 폴더를 zip 으로 압축하고
 확장자만 바꾼 것입니다. `build.sh` 가 하는 일은 다섯 단계입니다.

@@ -19,6 +19,9 @@ import plistlib
 
 BUNDLE_ID = "me.hhjung.tossinvest"
 
+# 버전은 여기서만 고친다. build.sh 가 이 값을 읽어 산출물 파일명에 붙인다.
+VERSION = "0.1.1"
+
 # UID 는 고정한다. 빌드할 때마다 새로 만들면 Alfred 가 기존 연결과 사용자가 지정한
 # 핫키를 잃어버린다.
 UID_PRICE = "A1B2C3D4-0001-4000-8000-000000000001"
@@ -367,7 +370,7 @@ def build():
             "TOSS_CLIENT_SECRET",
             "TOSS_ACCOUNT_SEQ",
         ],
-        "version": "0.1.1",
+        "version": VERSION,
     }
 
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

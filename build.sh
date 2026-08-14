@@ -9,8 +9,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-NAME="Toss Invest"
-OUT="dist/${NAME}.alfredworkflow"
+# 버전은 build/info_plist.py 가 정본이다. 파일명에 버전을 붙여 릴리즈마다 이름이
+# 달라지게 한다. 이름이 같으면 브라우저가 예전 파일을 재사용해 구버전을 설치하게
+# 된다 — 실제로 겪었다. 공백 대신 하이픈을 쓰는 것도 같은 이유다. GitHub 이
+# 첨부 파일명의 공백을 점으로 바꿔 버전 구분이 더 흐려진다.
+VERSION=$(/usr/bin/python3 -c "import sys; sys.path.insert(0, 'build'); import info_plist; print(info_plist.VERSION)")
+OUT="dist/Toss-Invest-v${VERSION}.alfredworkflow"
 
 echo "==> 아이콘 생성 (SVG -> PNG)"
 osascript -l JavaScript build/render_icons.js assets/icons workflow/icons 256
