@@ -97,7 +97,7 @@ def _detail(token, entry):
                 fmt.money(change.get("high"), currency),
                 fmt.money(change.get("low"), currency),
             ),
-            "당일 시가 · 고가 · 저가",
+            "{0} 시가 · 고가 · 저가".format("당일" if change.get("isToday") else "전일"),
             icons.CANDLE,
         ),
         row(

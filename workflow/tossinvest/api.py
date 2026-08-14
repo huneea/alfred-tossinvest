@@ -31,6 +31,9 @@ ACCOUNT_SEQ_TTL = 24 * 60 * 60
 
 # 전일 종가 캐시. 다음 장이 열릴 때까지 유효하다.
 PREV_CLOSE_FILE = "prev-close.json"
+# 저장된 값을 만드는 방식이 바뀌면 올린다. 예전 방식으로 계산해 둔 값이 만료 전까지
+# 살아남아 잘못된 등락률을 계속 보여주는 것을 막는다.
+PREV_CLOSE_VERSION = 2
 KST_OFFSET = 9 * 3600
 SESSION_OPEN_HOUR = 9
 
@@ -149,6 +152,30 @@ def candles(token, symbol, interval="1d", count=2):
     return sorted(entries, key=lambda c: c.get("timestamp") or "")
 
 
+def today_kst():
+    """오늘 날짜(KST) 를 'YYYY-MM-DD' 로."""
+    return time.strftime("%Y-%m-%d", time.gmtime(time.time() + KST_OFFSET))
+
+
+def _candle_date(entry):
+    """캔들의 날짜 부분. timestamp 가 +09:00 로 오므로 앞 10자가 곧 KST 날짜다."""
+    return (entry.get("timestamp") or "")[:10]
+
+
+def previous_close(entries, today=None):
+    """일봉 목록에서 '전일 종가' 를 고른다.
+
+    뒤에서 두 번째를 그냥 쓰면 안 된다. 그건 응답에 진행 중인 당일 캔들이 들어
+    있을 때만 맞고, 들어 있지 않으면 그저께 종가를 집어 등락률이 하루치 어긋난다.
+    날짜를 보고 오늘이 아닌 마지막 캔들을 고르면 두 경우 모두에서 맞다.
+    """
+    today = today or today_kst()
+    for entry in reversed(entries):
+        if _candle_date(entry) < today:
+            return entry.get("closePrice")
+    return None
+
+
 def change_against(last_price, prev_close):
     """(등락금액, 등락률 %) 를 돌려준다. 계산할 수 없으면 (None, None)."""
     last = fmt.to_decimal(last_price)
@@ -185,12 +212,18 @@ def _load_prev_closes():
         return {}
     if not isinstance(cached, dict) or cached.get("expires_at", 0) <= time.time():
         return {}
+    if cached.get("version") != PREV_CLOSE_VERSION:
+        return {}
     values = cached.get("values")
     return values if isinstance(values, dict) else {}
 
 
 def _store_prev_closes(values):
-    payload = {"expires_at": _next_session_open(time.time()), "values": values}
+    payload = {
+        "version": PREV_CLOSE_VERSION,
+        "expires_at": _next_session_open(time.time()),
+        "values": values,
+    }
     try:
         with open(_prev_close_file(), "w", encoding="utf-8") as handle:
             json.dump(payload, handle)
@@ -215,12 +248,10 @@ def prev_closes(token, symbols):
     if missing:
         def fetch(symbol):
             try:
-                entries = candles(token, symbol, interval="1d", count=2)
+                entries = candles(token, symbol, interval="1d", count=3)
             except TossError:
                 return symbol, None
-            if len(entries) < 2:
-                return symbol, None
-            return symbol, entries[-2].get("closePrice")
+            return symbol, previous_close(entries)
 
         workers = min(CHANGE_WORKERS, len(missing))
         with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -243,7 +274,8 @@ def daily_change(token, symbol, last_price=None):
     '현재가 - 전일종가' 가 표시된 등락과 맞지 않는다. 그래서 보여주는 값과 같은
     기준으로 계산하도록 호출부가 현재가를 넘긴다.
     """
-    entries = candles(token, symbol, interval="1d", count=2)
+    # 3개를 받는다. 2개면 응답에 당일 캔들이 포함되는 경우에만 전일이 들어온다.
+    entries = candles(token, symbol, interval="1d", count=3)
     if not entries:
         return None
 
@@ -255,16 +287,16 @@ def daily_change(token, symbol, last_price=None):
         "close": latest.get("closePrice"),
         "volume": latest.get("volume"),
         "currency": latest.get("currency"),
+        # 시고저·거래량이 오늘 것인지. 응답에 당일 캔들이 없으면 마지막 캔들은
+        # 어제 것이고, 그걸 '당일' 이라고 적으면 거짓말이 된다.
+        "isToday": _candle_date(latest) == today_kst(),
         "change": None,
         "changeRate": None,
         "prevClose": None,
     }
 
-    if len(entries) < 2:
-        return info
-
     reference = last_price if fmt.to_decimal(last_price) is not None else latest.get("closePrice")
-    previous = entries[-2].get("closePrice")
+    previous = previous_close(entries)
     change, rate = change_against(reference, previous)
     if change is None:
         return info
