@@ -89,8 +89,7 @@ def post_form(path, fields):
     return _send(req)
 
 
-def get(path, token, params=None, account_seq=None):
-    """인증된 GET 요청을 보내고 {"result": ...} 껍데기를 벗겨서 반환."""
+def _get_once(path, token, params, account_seq):
     url = BASE_URL + path
     if params:
         url += "?" + urllib.parse.urlencode(params)
@@ -106,3 +105,21 @@ def get(path, token, params=None, account_seq=None):
     if isinstance(payload, dict) and "result" in payload:
         return payload["result"]
     return payload
+
+
+def get(path, token, params=None, account_seq=None):
+    """인증된 GET 요청을 보내고 {"result": ...} 껍데기를 벗겨서 반환.
+
+    401 이면 토큰을 새로 받아 한 번만 재시도한다. 토큰은 만료 전에도 무효해질 수
+    있다 — 다른 곳에서 토큰을 새로 발급하면 기존 토큰이 죽는다. 그때 캐시에는
+    아직 만료되지 않은 토큰이 남아 있어서, 재발급 없이는 만료 시각까지 계속
+    401 이 난다.
+    """
+    try:
+        return _get_once(path, token, params, account_seq)
+    except ApiError as exc:
+        if exc.status != 401:
+            raise
+        # auth 가 client 를 쓰므로 모듈 최상단에서 가져오면 순환 임포트가 된다.
+        from . import auth
+        return _get_once(path, auth.access_token(force_refresh=True), params, account_seq)
