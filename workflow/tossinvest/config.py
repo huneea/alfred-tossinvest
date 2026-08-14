@@ -1,0 +1,58 @@
+"""환경변수 기반 설정.
+
+자격증명은 Alfred 워크플로우 환경변수(Configure Workflow > Variables)로 주입한다.
+Alfred 는 워크플로우 변수를 프로세스 환경변수로 그대로 넘겨준다. 값에는 "Don't
+Export" 를 걸어 워크플로우를 내보낼 때 딸려가지 않게 한다.
+
+터미널에서 직접 돌려볼 때는 같은 이름의 셸 환경변수를 export 하면 된다.
+"""
+
+from __future__ import annotations
+
+import os
+
+from .errors import ConfigError
+
+BUNDLE_ID = "me.hhjung.tossinvest"
+BASE_URL = "https://openapi.tossinvest.com"
+
+ENV_CLIENT_ID = "TOSS_CLIENT_ID"
+ENV_CLIENT_SECRET = "TOSS_CLIENT_SECRET"
+ENV_ACCOUNT_SEQ = "TOSS_ACCOUNT_SEQ"
+
+# 네트워크 타임아웃(초). Alfred 는 응답이 느리면 사용자가 그냥 창을 닫아버리므로
+# 넉넉하게 잡기보다 빨리 실패시키고 원인을 보여주는 편이 낫다.
+TIMEOUT = 10
+
+
+def _require(name):
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise ConfigError(
+            "설정이 필요합니다",
+            "{0} 환경변수가 비어 있습니다. Alfred 워크플로우 설정에서 등록하세요.".format(name),
+        )
+    return value
+
+
+def client_credentials():
+    """(client_id, client_secret) 반환. 하나라도 없으면 ConfigError."""
+    return _require(ENV_CLIENT_ID), _require(ENV_CLIENT_SECRET)
+
+
+def account_seq():
+    """기본 계좌 seq. 미설정이면 None — 호출부가 계좌 목록에서 첫 번째를 고른다."""
+    return os.environ.get(ENV_ACCOUNT_SEQ, "").strip() or None
+
+
+def cache_dir():
+    """쓰기 가능한 캐시 디렉터리 경로를 보장해서 반환.
+
+    Alfred 안에서는 alfred_workflow_cache 가 주어지지만, 터미널에서 직접 실행할
+    때는 없으므로 표준 캐시 경로로 떨어뜨린다.
+    """
+    path = os.environ.get("alfred_workflow_cache", "").strip()
+    if not path:
+        path = os.path.expanduser("~/Library/Caches/" + BUNDLE_ID)
+    os.makedirs(path, exist_ok=True)
+    return path
