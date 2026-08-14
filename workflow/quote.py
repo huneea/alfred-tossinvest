@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import sys
 
-from tossinvest import alfred, api, auth, fmt, store
+from tossinvest import alfred, api, auth, fmt, store, text
 
 STOCK_URL = "https://tossinvest.com/stocks/{0}"
 
@@ -24,12 +24,16 @@ ORDERBOOK_LEVELS = 3
 
 
 def _exact_match(matches, query):
-    """티커 또는 종목명이 정확히 일치하는 종목. 없으면 None."""
-    needle = query.strip().lower()
+    """티커 또는 종목명이 정확히 일치하는 종목. 없으면 None.
+
+    비교 전 text.fold() 로 정규화한다. 한글이 NFD 로 들어오면 정규화 없이는
+    같은 이름이어도 일치로 잡히지 않는다.
+    """
+    needle = text.fold(query)
     for entry in matches:
-        if (entry.get("symbol") or "").lower() == needle:
+        if text.fold(entry.get("symbol")) == needle:
             return entry
-        if (entry.get("name") or "").lower() == needle:
+        if text.fold(entry.get("name")) == needle:
             return entry
     return None
 

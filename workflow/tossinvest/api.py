@@ -10,7 +10,7 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from . import client, config, fmt
+from . import client, config, fmt, text
 from .errors import ApiError, TossError
 
 # 종목 마스터는 하루 한 번만 받으면 충분하다. Script Filter 는 타이핑마다
@@ -236,15 +236,18 @@ def search_stocks(token, query, limit=15, markets=DEFAULT_MARKETS):
 
     매 키 입력마다 API 를 때리는 대신 캐싱된 마스터를 필터링한다. 티커 완전
     일치 > 이름 시작 일치 > 부분 일치 순으로 정렬한다.
+
+    검색어와 종목명 모두 text.fold() 로 정규화한다. 한글이 NFD 로 들어오면
+    정규화 없이는 어떤 비교도 걸리지 않는다.
     """
-    needle = (query or "").strip().lower()
+    needle = text.fold(query)
     if not needle:
         return []
 
     scored = []
     for entry in stock_master(token, markets):
-        symbol = (entry.get("symbol") or "").lower()
-        name = (entry.get("name") or "").lower()
+        symbol = text.fold(entry.get("symbol"))
+        name = text.fold(entry.get("name"))
 
         if symbol == needle:
             rank = 0
