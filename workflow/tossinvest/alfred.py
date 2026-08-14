@@ -20,13 +20,16 @@ def item(title, subtitle="", arg=None, uid=None, valid=True, copy=None, icon=Non
     mods 는 {"cmd": {"arg": ..., "subtitle": ...}} 형태로, 수식키를 누른 채
     실행했을 때 다른 오브젝트로 다른 값을 넘기는 데 쓴다.
     """
-    entry = {"title": title, "subtitle": subtitle, "valid": valid}
+    # Alfred 는 이 필드들이 문자열이 아니면 항목을 렌더링하지 못한다. API 가
+    # 숫자로 주는 값(accountSeq 등)이 그대로 흘러들어와 화면이 깨진 적이 있어
+    # 출력 직전에 한 번 더 강제한다.
+    entry = {"title": str(title), "subtitle": str(subtitle), "valid": valid}
     if arg is not None:
-        entry["arg"] = arg
+        entry["arg"] = str(arg)
     if uid is not None:
-        entry["uid"] = uid
+        entry["uid"] = str(uid)
     if copy is not None:
-        entry["text"] = {"copy": copy}
+        entry["text"] = {"copy": str(copy)}
     if icon is not None:
         entry["icon"] = {"path": icon}
     if mods:

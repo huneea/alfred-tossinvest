@@ -98,7 +98,9 @@ def get(path, token, params=None, account_seq=None):
     req = urllib.request.Request(url, method="GET")
     req.add_header("Authorization", "Bearer " + token)
     if account_seq:
-        req.add_header("X-Tossinvest-Account", account_seq)
+        # accountSeq 는 문서와 달리 숫자로 오는 경우가 있다. 헤더 값은 문자열이어야
+        # urllib 이 받아준다.
+        req.add_header("X-Tossinvest-Account", str(account_seq))
 
     payload = _send(req)
     if isinstance(payload, dict) and "result" in payload:

@@ -45,7 +45,8 @@ def resolve_account_seq(token):
     found = accounts(token)
     if not found:
         raise ApiError("계좌를 찾을 수 없습니다", "이 API 키에 연결된 계좌가 없습니다.")
-    return found[0].get("accountSeq")
+    # 숫자로 오는 경우가 있어 문자열로 맞춰둔다. 헤더 값으로 그대로 쓰인다.
+    return str(found[0].get("accountSeq"))
 
 
 def holdings(token, account_seq):
