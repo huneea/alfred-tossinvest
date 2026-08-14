@@ -16,6 +16,7 @@ from __future__ import annotations
 import sys
 
 from tossinvest import alfred, api, auth, fmt, icons, store, text
+from tossinvest.errors import TossError
 
 STOCK_URL = "https://tossinvest.com/stocks/{0}"
 
@@ -175,9 +176,10 @@ def _detail(token, entry):
         # 토스가 basePrice 를 직접 주는 유일한 경로. 거래대금 상위권 종목이면
         # 여기서 정답을 그대로 확인할 수 있다.
         try:
-            official = api.ranking_price(token, symbol)
-        except Exception:
-            official = None
+            official, note = api.ranking_price(token, symbol)
+        except TossError as exc:
+            official, note = None, "{0} {1}".format(exc.title, exc.subtitle).strip()
+
         if official:
             items.append(row(
                 "토스 랭킹이 주는 값",
@@ -188,6 +190,10 @@ def _detail(token, entry):
                 ),
                 icons.WARN,
             ))
+        else:
+            # 못 가져온 이유를 감추지 않는다. 순위 밖인지 호출 실패인지 구분돼야
+            # 다음에 무엇을 볼지 정할 수 있다.
+            items.append(row("토스 랭킹을 가져오지 못했습니다", note or "알 수 없음", icons.WARN))
 
     upper = limits.get("upperLimitPrice")
     lower = limits.get("lowerLimitPrice")

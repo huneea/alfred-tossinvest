@@ -190,10 +190,11 @@ RANKING_COUNT = 100
 
 
 def ranking_price(token, symbol, market_country="KR"):
-    """랭킹에서 해당 종목의 {lastPrice, basePrice, changeRate} 를 찾는다.
+    """랭킹에서 해당 종목의 가격 정보를 찾는다.
 
-    우리가 역산한 기준가를 토스가 직접 주는 값과 대조하는 용도다. 랭킹은 상위
-    N 개만 담으므로 거래대금이 작은 종목은 들어 있지 않고, 그때는 None 이다.
+    (가격 dict 또는 None, 무슨 일이 있었는지 설명) 을 돌려준다. 못 찾은 이유를
+    호출부가 화면에 띄울 수 있어야 한다. 실패를 조용히 None 으로만 돌려주면
+    '순위 밖' 인지 '호출 실패' 인지 구분할 수 없다.
     """
     result = client.get(
         "/api/v1/rankings",
@@ -205,12 +206,23 @@ def ranking_price(token, symbol, market_country="KR"):
             "count": RANKING_COUNT,
         },
     )
-    # 응답이 목록인지 {items: [...]} 인지 문서에 확실치 않아 둘 다 받는다.
-    entries = result if isinstance(result, list) else (result or {}).get("items") or []
+
+    # 응답 껍데기가 목록인지 dict 인지 문서로 확인하지 못했다. 둘 다 받아보고,
+    # 어느 쪽도 아니면 실제로 온 모양을 그대로 알려준다.
+    if isinstance(result, list):
+        entries = result
+    elif isinstance(result, dict):
+        entries = result.get("items") or result.get("rankings") or []
+        if not entries:
+            return None, "응답 형태가 예상과 다릅니다: 키 {0}".format(
+                ", ".join(sorted(result.keys())) or "없음")
+    else:
+        return None, "응답이 비었습니다"
+
     for entry in entries:
         if entry.get("symbol") == symbol:
-            return entry.get("price") or {}
-    return None
+            return entry.get("price") or {}, None
+    return None, "{0}위 안에 없습니다 ({1}건 조회)".format(RANKING_COUNT, len(entries))
 
 
 def change_against(last_price, prev_close):
