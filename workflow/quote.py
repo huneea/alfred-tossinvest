@@ -172,6 +172,23 @@ def _detail(token, entry):
             icons.WARN,
         ))
 
+        # 토스가 basePrice 를 직접 주는 유일한 경로. 거래대금 상위권 종목이면
+        # 여기서 정답을 그대로 확인할 수 있다.
+        try:
+            official = api.ranking_price(token, symbol)
+        except Exception:
+            official = None
+        if official:
+            items.append(row(
+                "토스 랭킹이 주는 값",
+                "기준가 {0} · 현재가 {1} · 등락률 {2}".format(
+                    fmt.money(official.get("basePrice"), currency),
+                    fmt.money(official.get("lastPrice"), currency),
+                    fmt.signed_ratio(official.get("changeRate")),
+                ),
+                icons.WARN,
+            ))
+
     upper = limits.get("upperLimitPrice")
     lower = limits.get("lowerLimitPrice")
     if upper is not None or lower is not None:

@@ -182,6 +182,37 @@ def previous_close(entries, today=None):
     return None
 
 
+# 랭킹은 토스가 basePrice(기준가)와 changeRate 를 직접 주는 유일한 곳이다.
+# TOP_GAINERS/TOP_LOSERS 는 duration 시작 시점 기준가라 쓰면 안 되고, 나머지 타입은
+# 항상 전일 기준가다. 거래대금 상위가 대형주를 가장 넓게 담는다.
+RANKING_TYPE = "MARKET_TRADING_AMOUNT"
+RANKING_COUNT = 100
+
+
+def ranking_price(token, symbol, market_country="KR"):
+    """랭킹에서 해당 종목의 {lastPrice, basePrice, changeRate} 를 찾는다.
+
+    우리가 역산한 기준가를 토스가 직접 주는 값과 대조하는 용도다. 랭킹은 상위
+    N 개만 담으므로 거래대금이 작은 종목은 들어 있지 않고, 그때는 None 이다.
+    """
+    result = client.get(
+        "/api/v1/rankings",
+        token,
+        params={
+            "type": RANKING_TYPE,
+            "marketCountry": market_country,
+            "duration": "realtime",
+            "count": RANKING_COUNT,
+        },
+    )
+    # 응답이 목록인지 {items: [...]} 인지 문서에 확실치 않아 둘 다 받는다.
+    entries = result if isinstance(result, list) else (result or {}).get("items") or []
+    for entry in entries:
+        if entry.get("symbol") == symbol:
+            return entry.get("price") or {}
+    return None
+
+
 def change_against(last_price, prev_close):
     """(등락금액, 등락률 %) 를 돌려준다. 계산할 수 없으면 (None, None)."""
     last = fmt.to_decimal(last_price)
