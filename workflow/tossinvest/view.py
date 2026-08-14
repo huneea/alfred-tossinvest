@@ -21,43 +21,52 @@ def price_text(quote):
     return fmt.money(quote.get("lastPrice"), quote.get("currency") or "KRW")
 
 
-def listing(token, symbols, heading):
-    """종목코드 목록을 현재가·등락률이 붙은 항목으로 만든다.
+def change_rates(token, symbols, quotes):
+    """종목코드 -> 전일 종가 대비 등락률(%).
 
-    등락률은 종목당 캔들 한 번이 든다. 종목 수가 정해진 화면에서만 부르라는
-    전제이며, 검색 결과처럼 개수가 유동적인 곳에서는 쓰지 않는다.
+    등락은 반드시 화면에 보여주는 현재가(quotes 의 lastPrice)를 기준으로 계산한다.
+    캔들 종가로 계산하면 표시된 현재가와 등락이 서로 맞지 않는다.
+
+    전일 종가는 api.prev_closes 가 다음 장 시작까지 캐싱하므로, 목록이든 검색이든
+    이 함수를 부르는 데 드는 추가 호출은 그 종목을 처음 본 날 한 번뿐이다.
     """
+    previous = api.prev_closes(token, symbols)
+    rates = {}
+    for symbol in symbols:
+        last = (quotes.get(symbol) or {}).get("lastPrice")
+        _, rate = api.change_against(last, previous.get(symbol))
+        rates[symbol] = rate
+    return rates
+
+
+def stock_item(symbol, name, quote, rate, detail, saved):
+    """종목 한 건을 항목으로. 목록과 검색 결과가 같은 모양을 쓴다."""
+    title = "{0}  {1}".format(name, price_text(quote))
+    if rate is not None:
+        title += "  {0}".format(fmt.signed_rate(rate))
+
+    return alfred.item(
+        title=title,
+        subtitle="{0} · {1} · ⌘↩ 관심종목 {2}".format(
+            symbol, detail, "제거" if symbol in saved else "추가",
+        ),
+        arg=stock_url(symbol),
+        uid=symbol,
+        copy=symbol,
+        icon=icons.for_stock(symbol, saved),
+        mods=alfred.toggle_mod(symbol, symbol in saved),
+    )
+
+
+def listing(token, symbols, heading):
+    """종목코드 목록을 현재가·등락률이 붙은 항목으로 만든다."""
     quotes = api.prices(token, symbols)
-    # 등락은 화면에 보여줄 현재가와 같은 기준으로 계산한다. 캔들 종가로 계산하면
-    # 표시된 현재가와 등락이 서로 맞지 않는다.
-    last_prices = {symbol: quote.get("lastPrice") for symbol, quote in quotes.items()}
-    changes = api.daily_changes(token, symbols, last_prices)
+    rates = change_rates(token, symbols, quotes)
     names = api.symbol_names(token, symbols)
     saved = set(store.watchlist())
 
-    items = []
-    for symbol in symbols:
-        change = changes.get(symbol) or {}
-        rate = change.get("changeRate")
-
-        title = "{0}  {1}".format(names.get(symbol, symbol), price_text(quotes.get(symbol)))
-        if rate is not None:
-            title += "  {0}".format(fmt.signed_rate(rate))
-
-        detail = heading
-        if change.get("volume") is not None:
-            detail += " · 거래량 {0}".format(fmt.number(change["volume"]))
-        detail += " · ⌘↩ 관심종목 {0}".format("제거" if symbol in saved else "추가")
-
-        items.append(
-            alfred.item(
-                title=title,
-                subtitle="{0} · {1}".format(symbol, detail),
-                arg=stock_url(symbol),
-                uid=symbol,
-                copy=symbol,
-                icon=icons.for_stock(symbol, saved),
-                mods=alfred.toggle_mod(symbol, symbol in saved),
-            )
-        )
-    return items
+    return [
+        stock_item(symbol, names.get(symbol, symbol), quotes.get(symbol),
+                   rates.get(symbol), heading, saved)
+        for symbol in symbols
+    ]

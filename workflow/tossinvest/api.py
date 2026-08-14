@@ -25,6 +25,11 @@ MAX_SYMBOLS_PER_CALL = 200
 # 그 아래로 넉넉히 잡는다.
 CHANGE_WORKERS = 6
 
+# 전일 종가 캐시. 다음 장이 열릴 때까지 유효하다.
+PREV_CLOSE_FILE = "prev-close.json"
+KST_OFFSET = 9 * 3600
+SESSION_OPEN_HOUR = 9
+
 
 def accounts(token):
     """계좌 목록."""
@@ -108,6 +113,89 @@ def candles(token, symbol, interval="1d", count=2):
     return sorted(entries, key=lambda c: c.get("timestamp") or "")
 
 
+def change_against(last_price, prev_close):
+    """(등락금액, 등락률 %) 를 돌려준다. 계산할 수 없으면 (None, None)."""
+    last = fmt.to_decimal(last_price)
+    previous = fmt.to_decimal(prev_close)
+    if last is None or previous is None or previous == 0:
+        return None, None
+    diff = last - previous
+    return diff, diff / previous * 100
+
+
+def _prev_close_file():
+    return os.path.join(config.cache_dir(), PREV_CLOSE_FILE)
+
+
+def _next_session_open(now):
+    """다음 장 시작(09:00 KST) 의 epoch.
+
+    전일 종가는 장이 새로 열리기 전까지 바뀌지 않으므로 그 시각을 만료로 삼는다.
+    자정 기준으로 만료시키면 장 시작 전에 받아둔 값(그 전날 종가)이 개장 후까지
+    남아 등락률이 엉뚱한 기준으로 계산된다.
+    """
+    kst = now + KST_OFFSET
+    open_at = (kst // 86400) * 86400 + SESSION_OPEN_HOUR * 3600
+    if kst >= open_at:
+        open_at += 86400
+    return open_at - KST_OFFSET
+
+
+def _load_prev_closes():
+    try:
+        with open(_prev_close_file(), "r", encoding="utf-8") as handle:
+            cached = json.load(handle)
+    except (IOError, OSError, ValueError):
+        return {}
+    if not isinstance(cached, dict) or cached.get("expires_at", 0) <= time.time():
+        return {}
+    values = cached.get("values")
+    return values if isinstance(values, dict) else {}
+
+
+def _store_prev_closes(values):
+    payload = {"expires_at": _next_session_open(time.time()), "values": values}
+    try:
+        with open(_prev_close_file(), "w", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+    except (IOError, OSError):
+        pass
+
+
+def prev_closes(token, symbols):
+    """종목코드 -> 전일 종가.
+
+    전일 종가는 다음 장이 열리기 전까지 그대로이므로 캐싱한다. 덕분에 목록·검색
+    화면에서 등락률을 보여주면서도 캔들 호출은 그 종목을 처음 본 날 한 번뿐이다.
+    이 캐시가 없으면 결과 한 건마다 한 번씩, 키 입력마다 반복해서 부르게 된다.
+    """
+    symbols = [s for s in symbols if s]
+    if not symbols:
+        return {}
+
+    known = _load_prev_closes()
+    missing = [s for s in symbols if s not in known]
+
+    if missing:
+        def fetch(symbol):
+            try:
+                entries = candles(token, symbol, interval="1d", count=2)
+            except TossError:
+                return symbol, None
+            if len(entries) < 2:
+                return symbol, None
+            return symbol, entries[-2].get("closePrice")
+
+        workers = min(CHANGE_WORKERS, len(missing))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            for symbol, close in pool.map(fetch, missing):
+                if close is not None:
+                    known[symbol] = close
+        _store_prev_closes(known)
+
+    return {symbol: known.get(symbol) for symbol in symbols}
+
+
 def daily_change(token, symbol, last_price=None):
     """전일 종가 대비 등락과 당일 시/고/저·거래량.
 
@@ -136,51 +224,19 @@ def daily_change(token, symbol, last_price=None):
         "prevClose": None,
     }
 
-    reference = fmt.to_decimal(last_price)
-    if reference is None:
-        reference = fmt.to_decimal(latest.get("closePrice"))
-
-    if len(entries) < 2 or reference is None:
+    if len(entries) < 2:
         return info
 
-    previous = fmt.to_decimal(entries[-2].get("closePrice"))
-    if previous is None or previous == 0:
+    reference = last_price if fmt.to_decimal(last_price) is not None else latest.get("closePrice")
+    previous = entries[-2].get("closePrice")
+    change, rate = change_against(reference, previous)
+    if change is None:
         return info
 
-    info["prevClose"] = entries[-2].get("closePrice")
-    info["change"] = reference - previous
-    info["changeRate"] = (reference - previous) / previous * 100
+    info["prevClose"] = previous
+    info["change"] = change
+    info["changeRate"] = rate
     return info
-
-
-def daily_changes(token, symbols, last_prices=None):
-    """여러 종목의 등락을 병렬로 모은다.
-
-    캔들은 종목당 한 번씩 호출해야 해서 순차로 돌리면 목록이 눈에 띄게 느려진다.
-    MARKET_DATA_CHART 는 20 req/s 이므로 동시 실행 수를 넉넉히 아래로 잡는다.
-    한 종목이 실패해도 화면 전체를 버리지 않고 그 종목만 비워둔다.
-
-    last_prices 는 {종목코드: 현재가}. 화면에 보여줄 현재가와 같은 기준으로
-    등락을 계산하기 위해 넘긴다.
-    """
-    symbols = [s for s in symbols if s]
-    if not symbols:
-        return {}
-
-    last_prices = last_prices or {}
-    collected = {}
-
-    def fetch(symbol):
-        try:
-            return symbol, daily_change(token, symbol, last_prices.get(symbol))
-        except TossError:
-            return symbol, None
-
-    workers = min(CHANGE_WORKERS, len(symbols))
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        for symbol, info in pool.map(fetch, symbols):
-            collected[symbol] = info
-    return collected
 
 
 def orderbook(token, symbol):

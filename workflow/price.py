@@ -23,31 +23,22 @@ def _search(token, query):
 
     symbols = [entry.get("symbol") for entry in matches]
     quotes = api.prices(token, symbols)
+    # 관심종목 목록과 같은 방식으로 등락률을 붙인다. 전일 종가가 캐싱돼 있어
+    # 키 입력마다 종목별 호출이 나가지는 않는다.
+    rates = view.change_rates(token, symbols, quotes)
     saved = set(store.watchlist())
 
-    items = []
-    for entry in matches:
-        symbol = entry.get("symbol") or ""
-        items.append(
-            alfred.item(
-                # 관심종목 여부는 아이콘(별)이 알려주므로 제목에 표시를 덧붙이지 않는다.
-                title="{0}  {1}".format(
-                    entry.get("name") or symbol, view.price_text(quotes.get(symbol))
-                ),
-                subtitle="{0} · {1} · ⌘↩ 관심종목 {2}".format(
-                    symbol,
-                    entry.get("market") or "",
-                    "제거" if symbol in saved else "추가",
-                ),
-                arg=view.stock_url(symbol),
-                uid=symbol,
-                copy=symbol,
-                icon=icons.for_stock(symbol, saved),
-                mods=alfred.toggle_mod(symbol, symbol in saved),
-            )
+    alfred.output([
+        view.stock_item(
+            entry.get("symbol") or "",
+            entry.get("name") or entry.get("symbol") or "",
+            quotes.get(entry.get("symbol")),
+            rates.get(entry.get("symbol")),
+            entry.get("market") or "",
+            saved,
         )
-
-    alfred.output(items)
+        for entry in matches
+    ])
 
 
 def main():
