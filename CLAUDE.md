@@ -14,6 +14,20 @@
 워크플로우 환경변수로만 주입한다. `.gitignore` 가 `.env`·`*.pem` 을 막고 있지만
 테스트 코드나 문서에 실제 키를 넣지 않도록 주의한다.
 
+## 커밋 계정
+
+이 저장소는 개인 GitHub 계정(`huneea`)으로 커밋한다. 공개 저장소라 회사 이메일이
+커밋에 박히면 안 된다. `.git/config` 에 로컬 설정이 들어 있다.
+
+```
+user.name   huneea
+user.email  67728580+huneea@users.noreply.github.com
+```
+
+**`.git/config` 는 클론하면 따라오지 않는다.** 새로 클론했거나 커밋 전에 확인이
+필요하면 `git config user.email` 로 값을 보고, 회사 계정이면 위 두 줄을
+`git config --local` 로 다시 넣는다.
+
 ## 런타임 제약
 
 Alfred 는 스크립트를 최소 PATH(`/bin:/usr/bin:/usr/local/bin`)로 실행한다. 이
