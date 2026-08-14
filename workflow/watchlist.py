@@ -44,8 +44,7 @@ def main():
             )
             return
 
-    heading = "관심종목 {0}개".format(len(store.watchlist()))
-    alfred.live(view.listing(token, saved, heading))
+    alfred.live(view.listing(token, saved))
 
 
 if __name__ == "__main__":

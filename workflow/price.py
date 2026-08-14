@@ -51,12 +51,12 @@ def main():
 
     saved = store.watchlist()
     if saved:
-        alfred.live(view.listing(token, saved, "관심종목"))
+        alfred.live(view.listing(token, saved))
         return
 
     seen = store.recent()
     if seen:
-        alfred.live(view.listing(token, seen, "최근 조회"))
+        alfred.live(view.listing(token, seen))
         return
 
     alfred.empty(

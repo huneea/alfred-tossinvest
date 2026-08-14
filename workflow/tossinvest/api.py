@@ -292,8 +292,8 @@ def price_limits(token, symbol):
     return client.get("/api/v1/price-limits", token, params={"symbol": symbol}) or {}
 
 
-def symbol_names(token, symbols):
-    """종목코드 -> 종목명. 캐싱된 마스터에서 찾으므로 추가 호출이 없다."""
+def symbol_info(token, symbols):
+    """종목코드 -> {"name", "market"}. 캐싱된 마스터에서 찾으므로 추가 호출이 없다."""
     wanted = set(symbols)
     if not wanted:
         return {}
@@ -301,7 +301,10 @@ def symbol_names(token, symbols):
     for entry in stock_master(token):
         symbol = entry.get("symbol")
         if symbol in wanted:
-            found[symbol] = entry.get("name") or symbol
+            found[symbol] = {
+                "name": entry.get("name") or symbol,
+                "market": entry.get("market") or "",
+            }
     return found
 
 

@@ -39,17 +39,23 @@ def change_rates(token, symbols, quotes):
     return rates
 
 
-def stock_item(symbol, name, quote, rate, detail, saved):
-    """종목 한 건을 항목으로. 목록과 검색 결과가 같은 모양을 쓴다."""
+def stock_item(symbol, name, quote, rate, market, saved):
+    """종목 한 건을 항목으로. 목록과 검색 결과가 같은 모양을 쓴다.
+
+    부제에는 행마다 달라지는 값만 넣는다. 모든 행에 같은 문구를 반복하면 자리만
+    차지하고 알려주는 것이 없다.
+    """
     title = "{0}  {1}".format(name, price_text(quote))
     if rate is not None:
         title += "  {0}".format(fmt.signed_rate(rate))
 
     return alfred.item(
         title=title,
-        subtitle="{0} · {1} · ⌘↩ 관심종목 {2}".format(
-            symbol, detail, "제거" if symbol in saved else "추가",
-        ),
+        subtitle=" · ".join(part for part in (
+            symbol,
+            market,
+            "⌘↩ 관심종목 {0}".format("제거" if symbol in saved else "추가"),
+        ) if part),
         arg=stock_url(symbol),
         uid=symbol,
         copy=symbol,
@@ -58,15 +64,21 @@ def stock_item(symbol, name, quote, rate, detail, saved):
     )
 
 
-def listing(token, symbols, heading):
+def listing(token, symbols):
     """종목코드 목록을 현재가·등락률이 붙은 항목으로 만든다."""
     quotes = api.prices(token, symbols)
     rates = change_rates(token, symbols, quotes)
-    names = api.symbol_names(token, symbols)
+    info = api.symbol_info(token, symbols)
     saved = set(store.watchlist())
 
     return [
-        stock_item(symbol, names.get(symbol, symbol), quotes.get(symbol),
-                   rates.get(symbol), heading, saved)
+        stock_item(
+            symbol,
+            (info.get(symbol) or {}).get("name") or symbol,
+            quotes.get(symbol),
+            rates.get(symbol),
+            (info.get(symbol) or {}).get("market") or "",
+            saved,
+        )
         for symbol in symbols
     ]
