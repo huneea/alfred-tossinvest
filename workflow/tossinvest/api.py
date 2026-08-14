@@ -33,7 +33,7 @@ ACCOUNT_SEQ_TTL = 24 * 60 * 60
 PREV_CLOSE_FILE = "prev-close.json"
 # 저장된 값을 만드는 방식이 바뀌면 올린다. 예전 방식으로 계산해 둔 값이 만료 전까지
 # 살아남아 잘못된 등락률을 계속 보여주는 것을 막는다.
-PREV_CLOSE_VERSION = 3
+PREV_CLOSE_VERSION = 4
 KST_OFFSET = 9 * 3600
 SESSION_OPEN_HOUR = 9
 
@@ -238,11 +238,14 @@ def _store_prev_closes(values):
 
 
 def prev_closes(token, symbols):
-    """종목코드 -> 전일 종가.
+    """종목코드 -> {"base": 기준가, "candle": 일봉 전일 종가}.
 
-    전일 종가는 다음 장이 열리기 전까지 그대로이므로 캐싱한다. 덕분에 목록·검색
-    화면에서 등락률을 보여주면서도 캔들 호출은 그 종목을 처음 본 날 한 번뿐이다.
-    이 캐시가 없으면 결과 한 건마다 한 번씩, 키 입력마다 반복해서 부르게 된다.
+    둘 다 다음 장이 열리기 전까지 바뀌지 않으므로 함께 캐싱한다. 덕분에 목록·검색
+    화면에서 등락률을 두 기준으로 보여주면서도, 종목당 호출은 그 종목을 처음 본
+    날 두 번(상하한가·일봉)뿐이다. 이후 조회와 자동 갱신에서는 추가 호출이 없다.
+
+    base 는 등락률 계산의 기준이고 candle 은 정규장 기준 등락률 표시에 쓴다.
+    base 를 못 구하면(제한폭 없는 종목·해외) candle 이 그 자리를 대신한다.
     """
     symbols = [s for s in symbols if s]
     if not symbols:
@@ -253,27 +256,31 @@ def prev_closes(token, symbols):
 
     if missing:
         def fetch(symbol):
-            # 기준가를 먼저 쓴다. 캔들 종가는 기준가와 어긋나는 경우가 있다.
+            base = None
             try:
                 base = base_price(token, symbol)
-                if base is not None:
-                    return symbol, base
             except TossError:
                 pass
+
+            from_candle = None
             try:
-                entries = candles(token, symbol, interval="1d", count=3)
+                from_candle = previous_close(
+                    candles(token, symbol, interval="1d", count=3))
             except TossError:
+                pass
+
+            if base is None and from_candle is None:
                 return symbol, None
-            return symbol, previous_close(entries)
+            return symbol, {"base": base or from_candle, "candle": from_candle}
 
         workers = min(CHANGE_WORKERS, len(missing))
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            for symbol, close in pool.map(fetch, missing):
-                if close is not None:
-                    known[symbol] = close
+            for symbol, value in pool.map(fetch, missing):
+                if value is not None:
+                    known[symbol] = value
         _store_prev_closes(known)
 
-    return {symbol: known.get(symbol) for symbol in symbols}
+    return {symbol: known.get(symbol) or {} for symbol in symbols}
 
 
 def daily_change(token, symbol, last_price=None, prev_close=None):
